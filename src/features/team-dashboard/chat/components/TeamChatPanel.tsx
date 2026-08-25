@@ -138,8 +138,16 @@ export function TeamChatPanel({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
         />
-        <Button type="button" onClick={handleSend} className="shrink-0 whitespace-nowrap">
-          전송
+        <Button type="button" onClick={handleSend} aria-label="전송" className="shrink-0 px-2.5">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="h-4.5 w-4.5"
+            aria-hidden="true"
+          >
+            <path d="M2.94 2.06a.75.75 0 0 0-.94.98l2.62 6.72a.25.25 0 0 0 .23.16h6.9a.75.75 0 0 1 0 1.5h-6.9a.25.25 0 0 0-.23.16l-2.62 6.72a.75.75 0 0 0 .94.98 60.4 60.4 0 0 0 16.42-8.86.75.75 0 0 0 0-1.2A60.4 60.4 0 0 0 2.94 2.06Z" />
+          </svg>
         </Button>
       </div>
       <p className="px-5 pb-3 text-xs text-ink-400">

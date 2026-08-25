@@ -289,10 +289,29 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     }
   }
 
+  // F-17: "재분배 제안 검토"를 누르면 지금 지연 위험에 걸려 있는 업무·담당자·기한을 그대로 문장에
+  // 담아 보낸다 — 예전엔 "업무를 재분배해줘"만 보내서 AI가 어떤 업무를 말하는지 스스로 다시 추론해야
+  // 했다. AI 백엔드(POST /proposal/generate, web-production-dc097.up.railway.app)가 project.tasks
+  // 전체를 이미 받긴 하지만, 사용자가 지금 화면에서 "지연 위험"으로 보고 있는 항목이 무엇인지는
+  // userText(=이 채팅 메시지)로만 전달되므로 여기서 구체적으로 명시해야 한다.
   function requestReassign() {
+    const detailLines = activeDelayAlerts
+      .map((alert) => {
+        const task = subtasksById[alert.subtaskId]
+        if (!task) return null
+        const ownerLabel = task.assigneeId ? (memberNameById[task.assigneeId] ?? '팀원') : '공동 담당'
+        return `- ${task.title} (담당 ${ownerLabel}, 기한 D-${alert.daysOverdue})`
+      })
+      .filter((line): line is string => line !== null)
+
+    const text =
+      detailLines.length > 0
+        ? `${AI_MENTION} 다음 지연 위험 업무를 재분배해줘:\n${detailLines.join('\n')}`
+        : `${AI_MENTION} 업무를 재분배해줘`
+
     // 실서버 연동 프로젝트는 진짜 POST /api/v1/projects/{id}/messages로 재분배 제안을 요청한다
     if (isBackendProject) {
-      void handleSend(`${AI_MENTION} 업무를 재분배해줘`)
+      void handleSend(text)
       return
     }
 

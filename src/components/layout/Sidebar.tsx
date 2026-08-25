@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/cn'
 
 const navItems = [
@@ -13,6 +13,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ usageCount, usageLimit }: SidebarProps) {
+  const navigate = useNavigate()
   const usagePercent = (usageCount / usageLimit) * 100
 
   return (
@@ -55,7 +56,11 @@ export function Sidebar({ usageCount, usageLimit }: SidebarProps) {
             <div className="h-full rounded-full bg-brand-500" style={{ width: `${usagePercent}%` }} />
           </div>
         </div>
-        <button type="button" className="px-3 text-left text-sm text-ink-400 hover:text-ink-600">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="px-3 text-left text-sm text-ink-400 hover:text-ink-600"
+        >
           로그아웃
         </button>
       </div>

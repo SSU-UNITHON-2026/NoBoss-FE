@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { USE_MOCKS } from '@/lib/env'
+import { saveSession } from '@/lib/inviteSessionStore'
 import { inviteCode as mockInviteCode, inviteMembers as mockInviteMembers, type InviteMember } from '@/mocks/invite'
 
 interface InviteStepProps {
-  onComplete: (members: InviteMember[]) => void
+  onComplete: (members: InviteMember[], code: string) => void
+  // 초대 코드로 접속한 경우, 원래 세션의 멤버 명단·코드를 그대로 이어받는다
+  joinedSession?: { code: string; members: InviteMember[] }
 }
 
 const emptyMembers: InviteMember[] = [{ id: 'me', name: '나', department: '', isMe: false, joined: true }]
@@ -17,12 +20,20 @@ function generateInviteCode() {
   return `NB-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 }
 
-export function InviteStep({ onComplete }: InviteStepProps) {
-  const [members, setMembers] = useState<InviteMember[]>(USE_MOCKS ? mockInviteMembers : emptyMembers)
+export function InviteStep({ onComplete, joinedSession }: InviteStepProps) {
+  const [members, setMembers] = useState<InviteMember[]>(
+    joinedSession?.members ?? (USE_MOCKS ? mockInviteMembers : emptyMembers),
+  )
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteCode] = useState(USE_MOCKS ? mockInviteCode : generateInviteCode)
+  const [inviteCode] = useState(joinedSession?.code ?? (USE_MOCKS ? mockInviteCode : generateInviteCode))
   const joinedCount = members.filter((m) => m.joined).length
   const allJoined = members.length > 1 && joinedCount === members.length
+
+  // F-08: 초대 코드로 다른 브라우저/세션에서 접속했을 때 같은 참여 현황을 볼 수 있도록
+  // 참여 현황이 바뀔 때마다 코드 기준으로 저장해둔다.
+  useEffect(() => {
+    saveSession(inviteCode, members)
+  }, [inviteCode, members])
 
   function toggleJoin(id: string) {
     setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, joined: !m.joined } : m)))
@@ -109,7 +120,7 @@ export function InviteStep({ onComplete }: InviteStepProps) {
 
       <div className="mt-6 rounded-lg border border-surface-border bg-surface-muted p-6 text-center">
         {allJoined ? (
-          <Button onClick={() => onComplete(members)}>다음 단계로</Button>
+          <Button onClick={() => onComplete(members, inviteCode)}>다음 단계로</Button>
         ) : (
           <>
             <p className="font-semibold text-ink-600">전원 참여 후 다음 단계</p>

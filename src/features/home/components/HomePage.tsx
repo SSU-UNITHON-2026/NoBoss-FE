@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Field, Input } from '@/components/ui/Input'
 import { Tag } from '@/components/ui/Tag'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
+import { getSessionByCode, saveSession } from '@/lib/inviteSessionStore'
 import { listTeams, summarizeTeam } from '@/lib/teamStore'
 import { priorityItems as mockPriorityItems } from '@/mocks/home'
 import { teamProjectSummaries as mockTeamProjectSummaries } from '@/mocks/project'
@@ -15,10 +17,31 @@ const priorityItems = USE_MOCKS ? mockPriorityItems : []
 const myPreferredTasks = USE_MOCKS ? mockCurrentUser.preferredTasks : []
 
 export function HomePage() {
+  const navigate = useNavigate()
   const [teamProjectSummaries] = useState(() => [
     ...(USE_MOCKS ? mockTeamProjectSummaries : []),
     ...listTeams().map(summarizeTeam),
   ])
+  const [joinCode, setJoinCode] = useState('')
+  const [joinName, setJoinName] = useState('')
+  const [joinError, setJoinError] = useState<string | null>(null)
+
+  // F-08: 초대 코드로 진행 중인 팀 생성 세션에 합류한다 — 백엔드 초대 API가 없어
+  // localStorage에 저장된 세션(inviteSessionStore)을 코드로 찾아 이어서 들어간다.
+  function handleJoin() {
+    const session = getSessionByCode(joinCode)
+    if (!session) {
+      setJoinError('유효하지 않은 초대 코드입니다')
+      return
+    }
+    const name = joinName.trim()
+    const existing = session.members.find((m) => m.name === name)
+    const members = existing
+      ? session.members.map((m) => (m.name === name ? { ...m, joined: true } : m))
+      : [...session.members, { id: `guest-${Date.now()}`, name, department: '', isMe: false, joined: true }]
+    saveSession(session.code, members)
+    navigate('/team/new', { state: { joinCode: session.code } })
+  }
 
   return (
     <div className="grid grid-cols-[1fr_320px] gap-8">
@@ -47,6 +70,35 @@ export function HomePage() {
       </div>
 
       <div className="flex flex-col gap-6">
+        <Card>
+          <p className="font-semibold text-ink-900">초대 코드로 참가하기</p>
+          <p className="mt-1 text-sm text-ink-600">팀원에게 받은 초대 코드와 이름을 입력하세요.</p>
+          <div className="mt-3 flex flex-col gap-2">
+            <Field label="초대 코드">
+              <Input
+                placeholder="NB-XXXX-XXXX"
+                value={joinCode}
+                onChange={(e) => {
+                  setJoinCode(e.target.value)
+                  setJoinError(null)
+                }}
+              />
+            </Field>
+            <Field label="이름">
+              <Input placeholder="이름을 입력하세요" value={joinName} onChange={(e) => setJoinName(e.target.value)} />
+            </Field>
+            {joinError ? <p className="text-sm text-danger-600">{joinError}</p> : null}
+            <Button
+              variant="secondary"
+              className="mt-1"
+              disabled={!joinCode.trim() || !joinName.trim()}
+              onClick={handleJoin}
+            >
+              참가하기
+            </Button>
+          </div>
+        </Card>
+
         <Card>
           <p className="font-semibold text-ink-900">우선 확인 항목</p>
           <p className="mt-1 text-sm text-ink-600">일정 조정 신호입니다. 개인 평가와 무관합니다.</p>

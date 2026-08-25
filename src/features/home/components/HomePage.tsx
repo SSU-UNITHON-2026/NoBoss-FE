@@ -1,19 +1,25 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Tag } from '@/components/ui/Tag'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
+import { listTeams, summarizeTeam } from '@/lib/teamStore'
 import { priorityItems as mockPriorityItems } from '@/mocks/home'
 import { teamProjectSummaries as mockTeamProjectSummaries } from '@/mocks/project'
 import { currentUser as mockCurrentUser } from '@/mocks/user'
 import { ProjectCard } from './ProjectCard'
 
-const teamProjectSummaries = USE_MOCKS ? mockTeamProjectSummaries : []
 const priorityItems = USE_MOCKS ? mockPriorityItems : []
 const myPreferredTasks = USE_MOCKS ? mockCurrentUser.preferredTasks : []
 
 export function HomePage() {
+  const [teamProjectSummaries] = useState(() => [
+    ...(USE_MOCKS ? mockTeamProjectSummaries : []),
+    ...listTeams().map(summarizeTeam),
+  ])
+
   return (
     <div className="grid grid-cols-[1fr_320px] gap-8">
       <div>

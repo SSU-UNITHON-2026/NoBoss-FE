@@ -6,8 +6,17 @@ import { USE_MOCKS } from '@/lib/env'
 import { onboardTeam } from '@/mocks/project'
 import type { ChatMessage } from '@/types/chat'
 
+export interface CommonInfoValue {
+  name: string
+  courseName: string
+  topic: string
+  description: string
+  dueDate: string
+  memberCount: number
+}
+
 interface CommonInfoStepProps {
-  onComplete: () => void
+  onComplete: (value: CommonInfoValue) => void
 }
 
 const currentUserId = 'me'
@@ -90,7 +99,10 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
       </div>
 
       <div className="mt-6 flex justify-end">
-        <Button onClick={onComplete} disabled={!canProceed}>
+        <Button
+          onClick={() => onComplete({ name, courseName, topic, description, dueDate, memberCount })}
+          disabled={!canProceed}
+        >
           다음 단계로
         </Button>
       </div>

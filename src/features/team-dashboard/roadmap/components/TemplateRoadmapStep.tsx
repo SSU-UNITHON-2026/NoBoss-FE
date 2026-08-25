@@ -2,33 +2,16 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { cn } from '@/lib/cn'
+import { TASK_TEMPLATES } from '@/lib/roadmapTemplates'
 import type { TaskTemplateType } from '@/types/task'
 
 interface TemplateRoadmapStepProps {
-  onComplete: () => void
+  onComplete: (templateType: TaskTemplateType) => void
 }
-
-const templates: { type: TaskTemplateType; label: string; steps: string[] }[] = [
-  {
-    type: 'presentation',
-    label: '발표형',
-    steps: ['문제정의', '시장/사례조사', '슬라이드 디자인', '대본 작성', '리허설'],
-  },
-  {
-    type: 'development',
-    label: '개발형',
-    steps: ['기획/요구사항 정리', '디자인(와이어프레임)', '프론트엔드 개발', '백엔드 개발', '테스트/디버깅'],
-  },
-  {
-    type: 'report',
-    label: '리포트형',
-    steps: ['주제 조사', '자료 수집·정리', '초안 작성', '편집/교정', '참고문헌 정리'],
-  },
-]
 
 export function TemplateRoadmapStep({ onComplete }: TemplateRoadmapStepProps) {
   const [selected, setSelected] = useState<TaskTemplateType | null>(null)
-  const activeTemplate = templates.find((t) => t.type === selected)
+  const activeTemplate = TASK_TEMPLATES.find((t) => t.type === selected)
 
   return (
     <div>
@@ -36,7 +19,7 @@ export function TemplateRoadmapStep({ onComplete }: TemplateRoadmapStepProps) {
       <p className="mt-1 text-sm text-ink-600">과제 유형을 선택하면 서브태스크와 마감일 기반 D-day가 자동 산출됩니다.</p>
 
       <div className="mt-6 grid grid-cols-3 gap-4">
-        {templates.map((template) => (
+        {TASK_TEMPLATES.map((template) => (
           <button key={template.type} type="button" onClick={() => setSelected(template.type)}>
             <Card
               className={cn(
@@ -74,7 +57,7 @@ export function TemplateRoadmapStep({ onComplete }: TemplateRoadmapStepProps) {
       ) : null}
 
       <div className="mt-6 flex justify-end">
-        <Button onClick={onComplete} disabled={!selected}>
+        <Button onClick={() => selected && onComplete(selected)} disabled={!selected}>
           로드맵 확정
         </Button>
       </div>

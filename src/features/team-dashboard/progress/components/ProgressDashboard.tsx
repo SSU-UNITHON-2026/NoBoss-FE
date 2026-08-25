@@ -5,6 +5,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamChatPanel'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
+import { getTeam, updateRoadmap } from '@/lib/teamStore'
 import {
   members as mockMembers,
   onboardChatMessages,
@@ -18,19 +19,41 @@ import type { RoadmapStep } from '@/types/roadmap'
 import { DelayRiskPanel } from './DelayRiskPanel'
 import { RoadmapStepList } from './RoadmapStepList'
 
-const currentUserId = USE_MOCKS ? 'u-yunseah' : 'me'
-const memberNameById: Record<string, string> = USE_MOCKS
-  ? Object.fromEntries(mockMembers.map((m) => [m.id, m.name]))
-  : { [currentUserId]: '나' }
+interface ProgressDashboardProps {
+  teamId?: string
+}
 
-const initialSteps: RoadmapStep[] = USE_MOCKS ? onboardRoadmap : []
-const initialDelayAlerts: DelayAlert[] = USE_MOCKS ? onboardDelayAlerts : []
-const initialMessages: ChatMessage[] = USE_MOCKS ? onboardChatMessages : []
-const teamInfo = USE_MOCKS
-  ? { courseName: onboardTeam.courseName, memberCount: onboardTeam.memberCount, title: `${onboardTeam.name} — ${onboardTeam.topic}`, dueDate: onboardTeam.dueDate }
-  : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null as string | null }
+export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
+  const storedRecord = teamId ? getTeam(teamId) : undefined
+  const isStored = Boolean(storedRecord)
+  const isMockOnboard = !storedRecord && USE_MOCKS && teamId === 'p-onboard'
 
-export function ProgressDashboard() {
+  const currentUserId = isMockOnboard ? 'u-yunseah' : 'me'
+  const memberNameById: Record<string, string> = isMockOnboard
+    ? Object.fromEntries(mockMembers.map((m) => [m.id, m.name]))
+    : storedRecord
+      ? Object.fromEntries(storedRecord.team.members.map((m) => [m.id, m.name]))
+      : { [currentUserId]: '나' }
+
+  const initialSteps: RoadmapStep[] = storedRecord ? storedRecord.roadmap : isMockOnboard ? onboardRoadmap : []
+  const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : []
+  const initialMessages: ChatMessage[] = isMockOnboard ? onboardChatMessages : []
+  const teamInfo = storedRecord
+    ? {
+        courseName: storedRecord.team.courseName,
+        memberCount: storedRecord.team.memberCount,
+        title: `${storedRecord.team.name} — ${storedRecord.team.topic}`,
+        dueDate: storedRecord.team.dueDate,
+      }
+    : isMockOnboard
+      ? {
+          courseName: onboardTeam.courseName,
+          memberCount: onboardTeam.memberCount,
+          title: `${onboardTeam.name} — ${onboardTeam.topic}`,
+          dueDate: onboardTeam.dueDate,
+        }
+      : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null as string | null }
+
   const [steps, setSteps] = useState<RoadmapStep[]>(initialSteps)
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
 
@@ -39,25 +62,25 @@ export function ProgressDashboard() {
   const completed = allSubtasks.filter((t) => t.status === 'done').length
   const total = allSubtasks.length
   const progressPercent = total === 0 ? 0 : Math.round((completed / total) * 100)
-  const activeDelayAlerts = initialDelayAlerts.filter((a) => subtasksById[a.subtaskId]?.status !== 'done')
+  const activeDelayAlerts = delayAlerts.filter((a) => subtasksById[a.subtaskId]?.status !== 'done')
 
   function toggleSubtask(subtaskId: string) {
-    setSteps((prev) =>
-      prev.map((step) => ({
+    setSteps((prev) => {
+      const next: RoadmapStep[] = prev.map((step) => ({
         ...step,
         subtasks: step.subtasks.map((task) =>
-          task.id === subtaskId
-            ? { ...task, status: task.status === 'done' ? 'in-progress' : 'done' }
-            : task,
+          task.id === subtaskId ? { ...task, status: task.status === 'done' ? 'in-progress' : 'done' } : task,
         ),
-      })),
-    )
+      }))
+      if (isStored && teamId) updateRoadmap(teamId, next)
+      return next
+    })
   }
 
   function handleSend(text: string) {
     setMessages((prev) => [
       ...prev,
-      { id: `local-${prev.length}`, teamId: 'unknown', authorId: currentUserId, text, sentAt: new Date().toISOString() },
+      { id: `local-${prev.length}`, teamId: teamId ?? 'unknown', authorId: currentUserId, text, sentAt: new Date().toISOString() },
     ])
   }
 
@@ -66,7 +89,7 @@ export function ProgressDashboard() {
       ...prev,
       {
         id: `local-${prev.length}`,
-        teamId: 'unknown',
+        teamId: teamId ?? 'unknown',
         authorId: 'ai',
         text: '재분배 제안을 준비하고 있습니다. 잠시만 기다려 주세요.',
         sentAt: new Date().toISOString(),

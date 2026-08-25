@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getProject } from '@/api/project'
 import { getTasks, getTaskRisks, markTaskDone } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
@@ -25,6 +25,7 @@ import type { RoadmapStep } from '@/types/roadmap'
 import type { Subtask } from '@/types/task'
 import type { TaskResponse } from '@/types/taskApi'
 import type { Member } from '@/types/team'
+import { DelayBanner } from './DelayBanner'
 import { DelayRiskPanel } from './DelayRiskPanel'
 import { ParticipantStatusGrid } from './ParticipantStatusGrid'
 import { RoadmapStepList } from './RoadmapStepList'
@@ -143,6 +144,11 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const progressPercent = total === 0 ? 0 : Math.round((completed / total) * 100)
   const activeDelayAlerts = delayAlerts.filter((a) => subtasksById[a.subtaskId]?.status !== 'done')
   const contributions = useMemo(() => computeContributions(steps), [steps])
+  const delayRiskPanelRef = useRef<HTMLDivElement>(null)
+
+  function scrollToDelayRiskPanel() {
+    delayRiskPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   function flipDone(steps: RoadmapStep[], subtaskId: string): RoadmapStep[] {
     return steps.map((step) => ({
@@ -247,6 +253,8 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
         <p className="mt-2 text-sm text-danger-600">서버 연결 실패: {liveError}</p>
       ) : null}
 
+      <DelayBanner count={activeDelayAlerts.length} onReview={scrollToDelayRiskPanel} />
+
       <div className="mt-6 grid grid-cols-3 gap-4">
         <StatCard
           label="최종 마감까지"
@@ -273,14 +281,16 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
             onQuickAdd={addQuickTask}
           />
 
-          <DelayRiskPanel
-            alerts={activeDelayAlerts}
-            subtasksById={subtasksById}
-            memberNameById={memberNameById}
-            teamId={teamId ?? 'unknown'}
-            currentUserId={currentUserId}
-            onReviewReassign={requestReassign}
-          />
+          <div ref={delayRiskPanelRef}>
+            <DelayRiskPanel
+              alerts={activeDelayAlerts}
+              subtasksById={subtasksById}
+              memberNameById={memberNameById}
+              teamId={teamId ?? 'unknown'}
+              currentUserId={currentUserId}
+              onReviewReassign={requestReassign}
+            />
+          </div>
         </div>
 
         <TeamChatPanel

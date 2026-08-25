@@ -50,7 +50,9 @@ export function TeamDashboardPage() {
 
   // 이미 초기 설정을 마친 팀은 바로 진행관리 모드로 진입한다.
   if (teamId !== 'new') {
-    return <ProgressDashboard teamId={teamId} />
+    // key로 teamId를 줘서 다른 팀으로 이동하면(예: 홈에서 다른 mock 팀 카드 클릭) 완전히 다시
+    // 마운트되도록 한다 — 그래야 로드맵/채팅 등 로컬 state가 이전 팀 것으로 남아있지 않는다.
+    return <ProgressDashboard key={teamId} teamId={teamId} />
   }
 
   function advance() {

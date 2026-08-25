@@ -11,6 +11,7 @@ import { AI_MENTION, isAiMention } from '@/lib/chat'
 import { computeContributions } from '@/lib/contribution'
 import { formatDday } from '@/lib/date'
 import { mapRisksToDelayAlerts, mapTasksToRoadmap, ownerNamesFromTasks } from '@/lib/taskMapping'
+import { mockTeamDetails } from '@/mocks/project'
 import { currentUser } from '@/mocks/user'
 import type { ChatMessage } from '@/types/chat'
 import type { DelayAlert } from '@/types/nudge'
@@ -33,6 +34,8 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   // 쓴다 — 어떤 프로젝트든 이 화면에서 실서버 데이터를 그대로 보여준다.
   const projectId = teamId ? Number(teamId) : NaN
   const isBackendProject = Number.isFinite(projectId)
+  // 숫자가 아닌 teamId(예: p-delivery)는 실서버 프로젝트가 아니라 홈 화면 데모용 mock 팀이다.
+  const mockDetail = !isBackendProject && teamId ? mockTeamDetails[teamId] : undefined
   const [liveProject, setLiveProject] = useState<ProjectResponse | null>(null)
   const [liveTasks, setLiveTasks] = useState<TaskResponse[] | null>(null)
   const [liveRisks, setLiveRisks] = useState<DelayAlert[]>([])
@@ -47,7 +50,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   } | null>(null)
   const [planSaving, setPlanSaving] = useState(false)
   const [planError, setPlanError] = useState<string | null>(null)
-  const [steps, setSteps] = useState<RoadmapStep[]>([])
+  const [steps, setSteps] = useState<RoadmapStep[]>(() => mockDetail?.roadmap ?? [])
 
   useEffect(() => {
     if (!isBackendProject) return
@@ -82,12 +85,15 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
 
   // 백엔드에 인증/멤버 API가 없어 "나"는 전역적으로 mocks/user.ts의 currentUser로 고정한다
   const currentUserId = isBackendProject ? currentUser.name : 'me'
-  const memberNameById: Record<string, string> = isBackendProject && liveTasks
-    ? Object.fromEntries(ownerNamesFromTasks(liveTasks).map((name) => [name, name]))
-    : { [currentUserId]: '나' }
+  const memberNameById: Record<string, string> = mockDetail
+    ? Object.fromEntries(mockDetail.team.members.map((m) => [m.id, m.name]))
+    : isBackendProject && liveTasks
+      ? Object.fromEntries(ownerNamesFromTasks(liveTasks).map((name) => [name, name]))
+      : { [currentUserId]: '나' }
 
-  const members: Member[] =
-    isBackendProject && liveTasks
+  const members: Member[] = mockDetail
+    ? mockDetail.team.members
+    : isBackendProject && liveTasks
       ? ownerNamesFromTasks(liveTasks).map((name) => ({
           id: name,
           userId: name,
@@ -98,9 +104,15 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
         }))
       : [{ id: currentUserId, userId: currentUserId, name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }]
 
-  const delayAlerts: DelayAlert[] = isBackendProject ? liveRisks : []
-  const teamInfo: { courseName: string; memberCount: number | null; title: string; dueDate: string | null } =
-    isBackendProject && liveProject
+  const delayAlerts: DelayAlert[] = mockDetail ? mockDetail.delayAlerts : isBackendProject ? liveRisks : []
+  const teamInfo: { courseName: string; memberCount: number | null; title: string; dueDate: string | null } = mockDetail
+    ? {
+        courseName: mockDetail.team.courseName,
+        memberCount: mockDetail.team.memberCount,
+        title: `${mockDetail.team.name} — ${mockDetail.team.topic}`,
+        dueDate: mockDetail.team.dueDate,
+      }
+    : isBackendProject && liveProject
       ? {
           // 백엔드가 아직 인원 수를 내려주지 않는다 — 임의로 채우지 않고 null로 남긴다
           courseName: liveProject.subjectName,

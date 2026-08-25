@@ -12,8 +12,6 @@ import { computeContributions } from '@/lib/contribution'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
 import { mapRisksToDelayAlerts, mapTasksToRoadmap, ownerNamesFromTasks } from '@/lib/taskMapping'
-import { LIVE_DEMO_PROJECT_ID, LIVE_DEMO_USER } from '@/lib/liveDemo'
-import { getTeam, updateRoadmap } from '@/lib/teamStore'
 import {
   members as mockMembers,
   onboardChatMessages,
@@ -21,6 +19,7 @@ import {
   onboardRoadmap,
   onboardTeam,
 } from '@/mocks/project'
+import { currentUser } from '@/mocks/user'
 import type { ChatMessage } from '@/types/chat'
 import type { DelayAlert } from '@/types/nudge'
 import type { ProjectResponse } from '@/types/project'
@@ -38,12 +37,12 @@ interface ProgressDashboardProps {
 }
 
 export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
-  const storedRecord = teamId ? getTeam(teamId) : undefined
-  const isStored = Boolean(storedRecord)
-  const isMockOnboard = !storedRecord && USE_MOCKS && teamId === 'p-onboard'
-  // teamId === 'live'는 백엔드에 실제로 떠 있는 단일 데모 프로젝트(GET /api/v1/project)를 그대로 보여준다.
-  // 백엔드가 아직 멀티 팀을 지원하지 않아 임시로 이 경로로만 접근한다.
-  const isLiveBackend = !storedRecord && teamId === 'live'
+  const isMockOnboard = USE_MOCKS && teamId === 'p-onboard'
+  // teamId는 실제 백엔드 프로젝트 id(POST /api/v1/projects로 발급된 숫자)를 그대로 라우트 세그먼트로
+  // 쓴다 — 더 이상 단일 데모 프로젝트(구 /team/live)로 고정하지 않고, 어떤 프로젝트든 이 화면에서
+  // 실서버 데이터를 그대로 보여준다.
+  const projectId = !isMockOnboard && teamId ? Number(teamId) : NaN
+  const isBackendProject = Number.isFinite(projectId)
   const [liveProject, setLiveProject] = useState<ProjectResponse | null>(null)
   const [liveTasks, setLiveTasks] = useState<TaskResponse[] | null>(null)
   const [liveRisks, setLiveRisks] = useState<DelayAlert[]>([])
@@ -58,21 +57,19 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   } | null>(null)
   const [planSaving, setPlanSaving] = useState(false)
   const [planError, setPlanError] = useState<string | null>(null)
-  const [steps, setSteps] = useState<RoadmapStep[]>(() =>
-    storedRecord ? storedRecord.roadmap : isMockOnboard ? onboardRoadmap : [],
-  )
+  const [steps, setSteps] = useState<RoadmapStep[]>(() => (isMockOnboard ? onboardRoadmap : []))
 
   useEffect(() => {
-    if (!isLiveBackend) return
+    if (!isBackendProject) return
     let cancelled = false
-    getProject(LIVE_DEMO_PROJECT_ID)
+    getProject(projectId)
       .then((data) => {
         if (!cancelled) setLiveProject(data)
       })
       .catch((err: unknown) => {
         if (!cancelled) setLiveError(err instanceof Error ? err.message : '프로젝트 정보를 불러오지 못했습니다')
       })
-    getTasks(LIVE_DEMO_PROJECT_ID)
+    getTasks(projectId)
       .then((data) => {
         if (cancelled) return
         setLiveTasks(data.tasks)
@@ -81,7 +78,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       .catch((err: unknown) => {
         if (!cancelled) setLiveError(err instanceof Error ? err.message : '할 일 목록을 불러오지 못했습니다')
       })
-    getTaskRisks(LIVE_DEMO_PROJECT_ID)
+    getTaskRisks(projectId)
       .then((data) => {
         if (!cancelled) setLiveRisks(mapRisksToDelayAlerts(data.risks))
       })
@@ -91,58 +88,48 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     return () => {
       cancelled = true
     }
-  }, [isLiveBackend])
+  }, [isBackendProject, projectId])
 
-  const currentUserId = isMockOnboard ? 'u-yunseah' : isLiveBackend ? LIVE_DEMO_USER : 'me'
+  // 백엔드에 인증/멤버 API가 없어 "나"는 전역적으로 mocks/user.ts의 currentUser로 고정한다
+  const currentUserId = isMockOnboard ? 'u-yunseah' : isBackendProject ? currentUser.name : 'me'
   const memberNameById: Record<string, string> = isMockOnboard
     ? Object.fromEntries(mockMembers.map((m) => [m.id, m.name]))
-    : storedRecord
-      ? Object.fromEntries(storedRecord.team.members.map((m) => [m.id, m.name]))
-      : isLiveBackend && liveTasks
-        ? Object.fromEntries(ownerNamesFromTasks(liveTasks).map((name) => [name, name]))
-        : { [currentUserId]: '나' }
+    : isBackendProject && liveTasks
+      ? Object.fromEntries(ownerNamesFromTasks(liveTasks).map((name) => [name, name]))
+      : { [currentUserId]: '나' }
 
   const members: Member[] = isMockOnboard
     ? mockMembers
-    : storedRecord
-      ? storedRecord.team.members
-      : isLiveBackend && liveTasks
-        ? ownerNamesFromTasks(liveTasks).map((name) => ({
-            id: name,
-            userId: name,
-            name,
-            preferredTasks: [],
-            completedTaskCount: 0,
-            status: 'in-progress',
-          }))
-        : [{ id: currentUserId, userId: currentUserId, name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }]
+    : isBackendProject && liveTasks
+      ? ownerNamesFromTasks(liveTasks).map((name) => ({
+          id: name,
+          userId: name,
+          name,
+          preferredTasks: [],
+          completedTaskCount: 0,
+          status: 'in-progress',
+        }))
+      : [{ id: currentUserId, userId: currentUserId, name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }]
 
-  const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : isLiveBackend ? liveRisks : []
+  const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : isBackendProject ? liveRisks : []
   const initialMessages: ChatMessage[] = isMockOnboard ? onboardChatMessages : []
   const teamInfo: { courseName: string; memberCount: number | null; title: string; dueDate: string | null } =
-    storedRecord
+    isMockOnboard
       ? {
-          courseName: storedRecord.team.courseName,
-          memberCount: storedRecord.team.memberCount,
-          title: `${storedRecord.team.name} — ${storedRecord.team.topic}`,
-          dueDate: storedRecord.team.dueDate,
+          courseName: onboardTeam.courseName,
+          memberCount: onboardTeam.memberCount,
+          title: `${onboardTeam.name} — ${onboardTeam.topic}`,
+          dueDate: onboardTeam.dueDate,
         }
-      : isMockOnboard
+      : isBackendProject && liveProject
         ? {
-            courseName: onboardTeam.courseName,
-            memberCount: onboardTeam.memberCount,
-            title: `${onboardTeam.name} — ${onboardTeam.topic}`,
-            dueDate: onboardTeam.dueDate,
+            // 백엔드가 아직 인원 수를 내려주지 않는다 — 임의로 채우지 않고 null로 남긴다
+            courseName: liveProject.subjectName,
+            memberCount: null,
+            title: `${liveProject.teamName} — ${liveProject.projectTopic}`,
+            dueDate: liveProject.deadline,
           }
-        : isLiveBackend && liveProject
-          ? {
-              // 백엔드가 아직 인원 수를 내려주지 않는다 — 임의로 채우지 않고 null로 남긴다
-              courseName: liveProject.subjectName,
-              memberCount: null,
-              title: `${liveProject.teamName} — ${liveProject.projectTopic}`,
-              dueDate: liveProject.deadline,
-            }
-          : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null }
+        : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null }
 
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
 
@@ -169,20 +156,16 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   }
 
   function toggleSubtask(subtaskId: string) {
-    if (isLiveBackend) {
+    if (isBackendProject) {
       const wasDone = subtasksById[subtaskId]?.status === 'done'
       setSteps((prev) => flipDone(prev, subtaskId))
-      markTaskDone(LIVE_DEMO_PROJECT_ID, Number(subtaskId), !wasDone).catch(() => {
+      markTaskDone(projectId, Number(subtaskId), !wasDone).catch(() => {
         // 실패하면 낙관적 업데이트를 되돌린다
         setSteps((prev) => flipDone(prev, subtaskId))
       })
       return
     }
-    setSteps((prev) => {
-      const next = flipDone(prev, subtaskId)
-      if (isStored && teamId) updateRoadmap(teamId, next)
-      return next
-    })
+    setSteps((prev) => flipDone(prev, subtaskId))
   }
 
   // F-18: 바로 할 일 추가 — 현재 진행 중 단계(없으면 마지막 단계)에 내 담당으로 즉시 추가
@@ -190,14 +173,14 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     const trimmed = title.trim()
     if (!trimmed) return
 
-    // 실서버 연동 화면은 진짜 POST /api/v1/projects/{id}/tasks로 업무를 생성한다
-    if (isLiveBackend) {
+    // 실서버 연동 프로젝트는 진짜 POST /api/v1/projects/{id}/tasks로 업무를 생성한다
+    if (isBackendProject) {
       if (steps.length === 0) return
       const targetIndex = steps.findIndex((s) => s.status === 'in-progress')
       const index = targetIndex !== -1 ? targetIndex : steps.length - 1
       const stage = steps[index].order
       const dueDate = steps[index].dueDate || teamInfo.dueDate || new Date().toISOString().slice(0, 10)
-      createTask(LIVE_DEMO_PROJECT_ID, { stage, title: trimmed, owner: currentUserId, dueDate })
+      createTask(projectId, { stage, title: trimmed, owner: currentUserId, dueDate })
         .then((created) => {
           setLiveTasks((prev) => {
             const next = [...(prev ?? []), created]
@@ -233,29 +216,21 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
         status: 'in-progress',
         isQuickAdd: true,
       }
-      const next: RoadmapStep[] = prev.map((step, i) =>
-        i === index ? { ...step, subtasks: [...step.subtasks, newSubtask] } : step,
-      )
-      if (isStored && teamId) updateRoadmap(teamId, next)
-      return next
+      return prev.map((step, i) => (i === index ? { ...step, subtasks: [...step.subtasks, newSubtask] } : step))
     })
   }
 
   // 바로 할 일 추가로 만든 항목만 삭제 가능 — 원래 로드맵 템플릿에 있던 업무는 삭제 대상이 아니다
   function deleteQuickTask(subtaskId: string) {
-    if (isLiveBackend) {
+    if (isBackendProject) {
       setSteps((prev) => prev.map((step) => ({ ...step, subtasks: step.subtasks.filter((t) => t.id !== subtaskId) })))
       setLiveTasks((prev) => (prev ? prev.filter((t) => String(t.id) !== subtaskId) : prev))
-      deleteTask(LIVE_DEMO_PROJECT_ID, Number(subtaskId)).catch(() => {
+      deleteTask(projectId, Number(subtaskId)).catch(() => {
         // 실패해도 굳이 되돌리지 않는다 — 다음 새로고침에서 실제 서버 상태로 다시 맞춰진다
       })
       return
     }
-    setSteps((prev) => {
-      const next = prev.map((step) => ({ ...step, subtasks: step.subtasks.filter((t) => t.id !== subtaskId) }))
-      if (isStored && teamId) updateRoadmap(teamId, next)
-      return next
-    })
+    setSteps((prev) => prev.map((step) => ({ ...step, subtasks: step.subtasks.filter((t) => t.id !== subtaskId) })))
   }
 
   function appendAiMessage(text: string, extra?: Partial<ChatMessage>) {
@@ -271,10 +246,10 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       { id: `local-${prev.length}`, teamId: teamId ?? 'unknown', authorId: currentUserId, text, sentAt: new Date().toISOString() },
     ])
 
-    // 실서버 연동 화면(/team/live)은 POST /api/v1/messages로 실제 AI 응답·변경 제안을 받는다
-    if (isLiveBackend) {
+    // 실서버 연동 프로젝트는 POST /api/v1/projects/{id}/messages로 실제 AI 응답·변경 제안을 받는다
+    if (isBackendProject) {
       try {
-        const res = await sendMessage(LIVE_DEMO_PROJECT_ID, text)
+        const res = await sendMessage(projectId, text)
         appendAiMessage(res.aiMessage, {
           aiMessageId: res.messageId,
           requiresApproval: res.actionType !== 'NONE' && res.requiresApproval,
@@ -285,16 +260,16 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       return
     }
 
-    // mock/로컬 팀은 @AI로 시작하는 메시지만 AI가 응답한다 — 팀원끼리의 일반 대화는 AI 파이프라인을 타지 않는다
+    // mock 팀은 @AI로 시작하는 메시지만 AI가 응답한다 — 팀원끼리의 일반 대화는 AI 파이프라인을 타지 않는다
     if (!isAiMention(text)) return
     appendAiMessage('확인했습니다. 요청하신 내용을 처리할게요.')
   }
 
-  // F-17/F-28: AI 제안은 승인해야만 반영된다 — POST /api/v1/messages/{id}/apply
+  // F-17/F-28: AI 제안은 승인해야만 반영된다 — POST /api/v1/projects/{id}/messages/{id}/apply
   async function handleApproveMessage(message: ChatMessage) {
     if (message.aiMessageId == null) return
     try {
-      const result = await applyMessage(LIVE_DEMO_PROJECT_ID, message.aiMessageId)
+      const result = await applyMessage(projectId, message.aiMessageId)
       setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, applied: true } : m)))
 
       if (result.project) setLiveProject(result.project)
@@ -315,8 +290,8 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   }
 
   function requestReassign() {
-    // 실서버 연동 화면은 진짜 POST /api/v1/messages로 재분배 제안을 요청한다
-    if (isLiveBackend) {
+    // 실서버 연동 프로젝트는 진짜 POST /api/v1/projects/{id}/messages로 재분배 제안을 요청한다
+    if (isBackendProject) {
       void handleSend(`${AI_MENTION} 업무를 재분배해줘`)
       return
     }
@@ -352,7 +327,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     setPlanSaving(true)
     setPlanError(null)
     try {
-      const updated = await updateProject(LIVE_DEMO_PROJECT_ID, planDraft)
+      const updated = await updateProject(projectId, planDraft)
       setLiveProject(updated)
       setIsEditingPlan(false)
     } catch (err) {
@@ -372,10 +347,10 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
           <h1 className="text-2xl font-bold text-ink-900">{teamInfo.title}</h1>
         </div>
 
-        {isLiveBackend && !liveProject && !liveError ? (
+        {isBackendProject && !liveProject && !liveError ? (
           <p className="text-sm text-ink-400">실제 서버에서 프로젝트 정보를 불러오는 중…</p>
         ) : null}
-        {isLiveBackend && liveError ? <p className="text-sm text-danger-600">서버 연결 실패: {liveError}</p> : null}
+        {isBackendProject && liveError ? <p className="text-sm text-danger-600">서버 연결 실패: {liveError}</p> : null}
 
         <DelayBanner count={activeDelayAlerts.length} onReview={scrollToDelayRiskPanel} />
 
@@ -463,7 +438,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
           </div>
         ) : (
           <div className="flex justify-end">
-            <Button variant="secondary" onClick={openPlanEditor} disabled={!isLiveBackend || !liveProject}>
+            <Button variant="secondary" onClick={openPlanEditor} disabled={!isBackendProject || !liveProject}>
               계획 수정하기
             </Button>
           </div>

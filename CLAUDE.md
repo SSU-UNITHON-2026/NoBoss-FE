@@ -56,17 +56,25 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
   전부 제거됐다 — 이제 500을 반환한다.** `src/api/project.ts`/`tasks.ts`/`messages.ts`의 모든 함수가
   `projectId`를 첫 인자로 받도록 이미 맞춰뒀다 — 새 API 함수를 추가할 때도 이 규칙을 따를 것.
   업무 생성(`POST tasks`)·수정(`PATCH tasks/{id}`)·삭제(`DELETE tasks/{id}`)가 새로 생겨서 F-18(바로
-  할 일 추가)이 `/team/live`에서 실제로 백엔드에 저장된다(`ProgressDashboard.tsx`의 `addQuickTask`
+  할 일 추가)이 진행관리 모드에서 실제로 백엔드에 저장된다(`ProgressDashboard.tsx`의 `addQuickTask`
   참고). 팀원 초대/멤버/채팅 로그/독촉 관련 엔드포인트는 여전히 없다 — 해당 기능은 백엔드가 추가되기
-  전까지 계속 `teamStore.ts`/`nudgeStore.ts`(localStorage) mock으로 유지한다. 로드맵 단계(stage) 자체의
+  전까지 계속 `nudgeStore.ts`(localStorage) 등 mock으로 유지한다. 로드맵 단계(stage) 자체의
   메타데이터(라벨/기한 등 5단계 뼈대)를 내려주는 엔드포인트도 아직 없다 — `Task`마다 `stage`(숫자)+
-  `stageName`(문자열)만 붙어서 온다. 5단계 로드맵 뼈대(`roadmapTemplates.ts`)는 계속 프론트에서
-  구성해야 한다.
-- `POST /api/v1/projects`로 새 프로젝트를 만들 수는 있지만, 프론트에서 아직 **연동하지 않는다** —
-  팀원 초대/멤버 API가 없어서 새로 만든 프로젝트에 실제 팀원을 등록할 방법이 없기 때문. 이 gap이
-  해소되기 전까진 실서버 연동 화면을 `/team/live` 경로 하나로 유지한다(`ProgressDashboard.tsx`의
-  `isLiveBackend` 분기, `LIVE_DEMO_PROJECT_ID = 1`로 고정). 로컬 mock 팀(`teamStore.ts`)이나 온보드
-  mock 데모(`p-onboard`)와는 별개 경로이니 섞어 쓰지 않는다.
+  `stageName`(문자열)만 붙어서 온다. 5단계 로드맵 템플릿(`roadmapTemplates.ts`의 `TASK_TEMPLATES`)은
+  계속 프론트에서 구성해야 한다.
+- (2026-08-26 기준) **백엔드 연동은 더 이상 단일 데모 프로젝트(`/team/live`, id=1) 전용이 아니다.**
+  `POST /api/v1/projects`로 실제 프로젝트를 생성하고, `/team/:teamId`의 `teamId`를 그 프로젝트의 숫자
+  id로 그대로 라우팅한다 — 어떤 프로젝트든 같은 화면에서 실서버 데이터를 쓴다
+  (`ProgressDashboard.tsx`의 `isBackendProject`/`projectId` 분기, 더 이상 `LIVE_DEMO_PROJECT_ID` 같은
+  고정값 없음). 홈 화면(`HomePage.tsx`)은 `GET /projects`로 전체 프로젝트 목록을 가져와 보여주고,
+  To Do List(`TodoListPage.tsx`)도 전체 프로젝트를 순회하며 내 담당 업무를 모은다. `teamStore.ts`
+  (localStorage 로드맵 mock)는 제거됐다 — 로컬에만 존재하던 팀 생성 흐름은 더 이상 없다.
+  다만 **팀원 초대/멤버 API는 여전히 없다**: 초기 설정의 팀원 초대(F-08)·역할 분배(F-09~F-11) 단계는
+  그대로 로컬 상태로만 진행하고, "로드맵 확정" 시점(`TeamDashboardPage.tsx`의 `handleRoadmapComplete`)
+  에만 `POST /projects`로 실제 프로젝트를 만들고 선택한 템플릿의 5단계를 초기 업무로 씨딩한다
+  (owner는 초대 단계에서 참여 확정한 팀원 이름으로 라운드로빈 배정 — F-09 콜드스타트 균등 배정).
+  백엔드에 인증이 없어 "나"는 여전히 `mocks/user.ts`의 `currentUser.name`(윤세아)으로 전역 고정한다.
+  온보드 mock 데모(`p-onboard`)는 여전히 별개 경로이니 섞어 쓰지 않는다.
 - **모든 API는 반드시 `https://noboss-api.kusitms.xyz`(이 섹션 맨 위) 하나로만 받는다.** AI 관련
   기능(공동설정 채팅 자연어 파싱 등, F-28)도 예외 없이 이 백엔드를 통해서만 연동한다.
   `https://web-production-dc097.up.railway.app`(별도 FastAPI AI 서비스)는 **프론트에서 절대 직접

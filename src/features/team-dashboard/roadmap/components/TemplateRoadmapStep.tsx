@@ -7,9 +7,11 @@ import type { TaskTemplateType } from '@/types/task'
 
 interface TemplateRoadmapStepProps {
   onComplete: (templateType: TaskTemplateType) => void
+  saving?: boolean
+  errorText?: string | null
 }
 
-export function TemplateRoadmapStep({ onComplete }: TemplateRoadmapStepProps) {
+export function TemplateRoadmapStep({ onComplete, saving, errorText }: TemplateRoadmapStepProps) {
   const [selected, setSelected] = useState<TaskTemplateType | null>(null)
   const activeTemplate = TASK_TEMPLATES.find((t) => t.type === selected)
 
@@ -56,9 +58,11 @@ export function TemplateRoadmapStep({ onComplete }: TemplateRoadmapStepProps) {
         </div>
       ) : null}
 
+      {errorText ? <p className="mt-4 text-sm text-danger-600">{errorText}</p> : null}
+
       <div className="mt-6 flex justify-end">
-        <Button onClick={() => selected && onComplete(selected)} disabled={!selected}>
-          로드맵 확정
+        <Button onClick={() => selected && onComplete(selected)} disabled={!selected || saving}>
+          {saving ? '프로젝트 생성 중…' : '로드맵 확정'}
         </Button>
       </div>
     </div>

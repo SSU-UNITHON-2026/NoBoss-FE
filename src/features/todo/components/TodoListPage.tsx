@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { getProject } from '@/api/project'
+import { getProjects } from '@/api/project'
 import { getTasks, markTaskDone } from '@/api/tasks'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -8,14 +8,13 @@ import { Field, Input } from '@/components/ui/Input'
 import { StatCard } from '@/components/ui/StatCard'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
-import { LIVE_DEMO_PROJECT_ID, LIVE_DEMO_USER } from '@/lib/liveDemo'
 import { todoGroups as mockTodoGroups } from '@/mocks/todo'
+import { currentUser } from '@/mocks/user'
 import type { Submission } from '@/types/task'
 import type { TodoItem, TodoProjectGroup } from '@/types/todo'
 
 const initialGroups = USE_MOCKS ? mockTodoGroups : []
 const QUICK_GROUP_ID = 'quick'
-const LIVE_GROUP_ID = 'live'
 const CURRENT_USER_ID = 'me'
 
 interface SubmissionTarget {
@@ -25,37 +24,47 @@ interface SubmissionTarget {
 
 export function TodoListPage() {
   const [groups, setGroups] = useState(initialGroups)
+  const [backendProjectIds, setBackendProjectIds] = useState<Set<string>>(new Set())
   const [quickTitle, setQuickTitle] = useState('')
   const [submissionTarget, setSubmissionTarget] = useState<SubmissionTarget | null>(null)
 
-  // F-13b: 실서버 데모 프로젝트(/team/live)에서 내(윤세아) 담당 업무도 개인 대시보드에 합쳐서 보여준다
+  // F-13b: 실서버에 있는 모든 프로젝트에서 내(mocks/user.ts currentUser) 담당 업무를 모아
+  // 개인 대시보드에 합쳐서 보여준다 — 더 이상 단일 데모 프로젝트로 고정하지 않는다.
   useEffect(() => {
     let cancelled = false
-    Promise.all([getProject(LIVE_DEMO_PROJECT_ID), getTasks(LIVE_DEMO_PROJECT_ID)])
-      .then(([project, tasksData]) => {
+    getProjects()
+      .then(async (data) => {
+        const backendGroups = await Promise.all(
+          data.projects.map(async (project) => {
+            const tasksData = await getTasks(project.id)
+            const myItems: TodoItem[] = tasksData.tasks
+              .filter((t) => t.owner === currentUser.name)
+              .map((t) => ({
+                id: String(t.id),
+                projectId: String(project.id),
+                projectLabel: project.projectTopic,
+                stepLabel: t.stageName,
+                title: t.title,
+                ownerLabel: '내 담당' as const,
+                dueDate: t.dueDate,
+                done: t.done,
+              }))
+              .sort((a, b) => Number(a.done) - Number(b.done))
+            if (myItems.length === 0) return null
+            const group: TodoProjectGroup = {
+              projectId: String(project.id),
+              projectTitle: project.projectTopic,
+              courseLabel: project.subjectName,
+              dueDate: project.deadline,
+              items: myItems,
+            }
+            return group
+          }),
+        )
         if (cancelled) return
-        const myItems: TodoItem[] = tasksData.tasks
-          .filter((t) => t.owner === LIVE_DEMO_USER)
-          .map((t) => ({
-            id: String(t.id),
-            projectId: LIVE_GROUP_ID,
-            projectLabel: project.projectTopic,
-            stepLabel: t.stageName,
-            title: t.title,
-            ownerLabel: '내 담당' as const,
-            dueDate: t.dueDate,
-            done: t.done,
-          }))
-          .sort((a, b) => Number(a.done) - Number(b.done))
-        if (myItems.length === 0) return
-        const liveGroup: TodoProjectGroup = {
-          projectId: LIVE_GROUP_ID,
-          projectTitle: project.projectTopic,
-          courseLabel: project.subjectName,
-          dueDate: project.deadline,
-          items: myItems,
-        }
-        setGroups((prev) => [liveGroup, ...prev.filter((g) => g.projectId !== LIVE_GROUP_ID)])
+        const filtered = backendGroups.filter((g): g is TodoProjectGroup => g !== null)
+        setBackendProjectIds(new Set(data.projects.map((p) => String(p.id))))
+        setGroups((prev) => [...filtered, ...prev.filter((g) => !filtered.some((f) => f.projectId === g.projectId))])
       })
       .catch(() => {
         // 실서버 연결 실패 시 조용히 생략 — 개인 To Do 화면 나머지는 그대로 뜨도록 한다
@@ -129,8 +138,8 @@ export function TodoListPage() {
       ),
     )
     // 실서버에서 가져온 업무는 완료 상태도 실제로 PATCH /projects/{id}/tasks/{taskId}/done에 반영한다
-    if (projectId === LIVE_GROUP_ID) {
-      markTaskDone(LIVE_DEMO_PROJECT_ID, Number(item.id), true).catch(() => {})
+    if (backendProjectIds.has(projectId)) {
+      markTaskDone(Number(projectId), Number(item.id), true).catch(() => {})
     }
     setSubmissionTarget(null)
   }
@@ -148,8 +157,8 @@ export function TodoListPage() {
             },
       ),
     )
-    if (projectId === LIVE_GROUP_ID) {
-      markTaskDone(LIVE_DEMO_PROJECT_ID, Number(itemId), false).catch(() => {})
+    if (backendProjectIds.has(projectId)) {
+      markTaskDone(Number(projectId), Number(itemId), false).catch(() => {})
     }
   }
 

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { createProject } from '@/api/project'
+import { createTask } from '@/api/tasks'
 import { AssignmentStep } from '@/features/team-dashboard/assignment/components/AssignmentStep'
 import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamChatPanel'
 import { CommonInfoStep, type CommonInfoValue } from '@/features/team-dashboard/common-info/components/CommonInfoStep'
@@ -8,13 +10,11 @@ import { ProgressDashboard } from '@/features/team-dashboard/progress/components
 import { TemplateRoadmapStep } from '@/features/team-dashboard/roadmap/components/TemplateRoadmapStep'
 import { isAiMention } from '@/lib/chat'
 import { deleteSession, getSessionByCode } from '@/lib/inviteSessionStore'
-import { buildRoadmapFromTemplate } from '@/lib/roadmapTemplates'
-import { createTeam } from '@/lib/teamStore'
+import { TASK_TEMPLATES } from '@/lib/roadmapTemplates'
 import type { InviteMember } from '@/mocks/invite'
 import type { ChatMessage } from '@/types/chat'
 import type { TeamDashboardMode, TeamDashboardSetupStep } from '@/types/dashboard'
 import type { TaskTemplateType } from '@/types/task'
-import type { Team } from '@/types/team'
 import { StepIndicator } from './StepIndicator'
 
 const setupOrder: TeamDashboardSetupStep[] = ['invite', 'common-info', 'assignment', 'roadmap']
@@ -35,6 +35,10 @@ export function TeamDashboardPage() {
   // F-23: 초기 설정 4단계 전체에서 채팅이 상시 노출돼야 하므로, 오케스트레이터가 채팅 상태를
   // 들고 있고 각 단계는 좌측 콘텐츠만 렌더링한다 — 단계 전환에도 대화 내역이 끊기지 않는다.
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  // F-06 → F-27: 실제 백엔드(POST /projects)에 프로젝트를 만드는 중임을 표시 — 팀원 초대/역할분배는
+  // 백엔드에 API가 없어 여전히 로컬 상태로만 진행하고, 로드맵 확정 시점에만 실서버에 연결한다.
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   // 이미 초기 설정을 마친 팀은 바로 진행관리 모드로 진입한다.
   if (teamId !== 'new') {
@@ -80,36 +84,48 @@ export function TeamDashboardPage() {
     })
   }
 
-  // F-27: 로드맵 확정 시 화면 전환 없이 진행관리 모드로 자동 전환
-  function handleRoadmapComplete(templateType: TaskTemplateType) {
+  // F-27: 로드맵 확정 시 화면 전환 없이 진행관리 모드로 자동 전환.
+  // 실제 백엔드(POST /projects)에 프로젝트를 만들고, 선택한 템플릿의 5단계를 초기 업무로 씨딩한 뒤
+  // 그 프로젝트 id로 진행관리 화면(/team/:teamId)에 진입한다 — teamStore(localStorage) 더 이상 사용 안 함.
+  async function handleRoadmapComplete(templateType: TaskTemplateType) {
     if (!commonInfo) return
 
-    const team: Team = {
-      id: `team-${Date.now()}`,
-      name: commonInfo.name,
-      courseName: commonInfo.courseName,
-      topic: commonInfo.topic,
-      description: commonInfo.description,
-      dueDate: commonInfo.dueDate,
-      memberCount: commonInfo.memberCount,
-      // F-08: 초대 단계에서 참여를 확정한 팀원 명단을 그대로 팀 멤버로 넘긴다 — 항상 "나" 1명으로
-      // 고정되던 문제를 고침. 초대 단계를 건너뛴 경로(온보드 mock 등)를 대비해 폴백을 남겨둔다.
-      members:
-        inviteMembers.length > 0
-          ? inviteMembers.map((m) => ({
-              id: m.id,
-              userId: m.id,
-              name: m.name,
-              preferredTasks: [],
-              completedTaskCount: 0,
-              status: 'in-progress',
-            }))
-          : [{ id: 'me', userId: 'me', name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }],
+    const template = TASK_TEMPLATES.find((t) => t.type === templateType) ?? TASK_TEMPLATES[0]
+    // F-08: 초대 단계에서 참여를 확정한 팀원 명단으로 콜드스타트 균등 배정(F-09)한다.
+    // 백엔드 owner 필드는 멤버 id가 아니라 이름 문자열이다.
+    const joinedNames = inviteMembers.filter((m) => m.joined).map((m) => m.name)
+    const owners = joinedNames.length > 0 ? joinedNames : ['나']
+
+    setIsCreatingProject(true)
+    setCreateError(null)
+    try {
+      const project = await createProject({
+        teamName: commonInfo.name,
+        subjectName: commonInfo.courseName,
+        projectTopic: commonInfo.topic,
+        deadline: commonInfo.dueDate,
+        description: commonInfo.description,
+      })
+
+      const start = new Date()
+      const end = new Date(commonInfo.dueDate)
+      const totalMs = Math.max(end.getTime() - start.getTime(), 0)
+      await Promise.all(
+        template.steps.map((label, i) => {
+          const ratio = (i + 1) / template.steps.length
+          const dueDate = new Date(start.getTime() + totalMs * ratio).toISOString().slice(0, 10)
+          const owner = owners[i % owners.length]
+          return createTask(project.id, { stage: i + 1, title: label, owner, dueDate })
+        }),
+      )
+
+      if (activeInviteCode) deleteSession(activeInviteCode)
+      navigate(`/team/${project.id}`)
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : '프로젝트 생성에 실패했습니다')
+    } finally {
+      setIsCreatingProject(false)
     }
-    const roadmap = buildRoadmapFromTemplate(templateType, commonInfo.dueDate)
-    createTeam(team, roadmap)
-    if (activeInviteCode) deleteSession(activeInviteCode)
-    navigate(`/team/${team.id}`)
   }
 
   return (
@@ -125,7 +141,11 @@ export function TeamDashboardPage() {
           )}
           {mode.phase === 'setup' && mode.step === 'assignment' && <AssignmentStep onComplete={advance} />}
           {mode.phase === 'setup' && mode.step === 'roadmap' && (
-            <TemplateRoadmapStep onComplete={handleRoadmapComplete} />
+            <TemplateRoadmapStep
+              onComplete={(type) => void handleRoadmapComplete(type)}
+              saving={isCreatingProject}
+              errorText={createError}
+            />
           )}
         </div>
 

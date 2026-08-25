@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getProject } from '@/api/project'
+import { getProjects } from '@/api/project'
 import { getTaskRisks, getTasks } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -8,10 +8,8 @@ import { Field, Input } from '@/components/ui/Input'
 import { Tag } from '@/components/ui/Tag'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
-import { getSessionByCode, saveSession } from '@/lib/inviteSessionStore'
-import { LIVE_DEMO_PROJECT_ID } from '@/lib/liveDemo'
+import { getSessionByCode } from '@/lib/inviteSessionStore'
 import { ownerNamesFromTasks } from '@/lib/taskMapping'
-import { listTeams, summarizeTeam } from '@/lib/teamStore'
 import { priorityItems as mockPriorityItems } from '@/mocks/home'
 import { teamProjectSummaries as mockTeamProjectSummaries } from '@/mocks/project'
 import { currentUser as mockCurrentUser } from '@/mocks/user'
@@ -23,38 +21,39 @@ const myPreferredTasks = USE_MOCKS ? mockCurrentUser.preferredTasks : []
 
 export function HomePage() {
   const navigate = useNavigate()
-  const [teamProjectSummaries] = useState(() => [
-    ...(USE_MOCKS ? mockTeamProjectSummaries : []),
-    ...listTeams().map(summarizeTeam),
-  ])
-  const [liveSummary, setLiveSummary] = useState<TeamProjectSummary | null>(null)
+  const [backendSummaries, setBackendSummaries] = useState<TeamProjectSummary[]>([])
   const [joinCode, setJoinCode] = useState('')
-  const [joinName, setJoinName] = useState('')
   const [joinError, setJoinError] = useState<string | null>(null)
 
-  // 실서버 데모 프로젝트(/team/live)도 항상 목록에 노출한다
+  // 실서버에 있는 모든 프로젝트를 홈 목록에 노출한다 — 더 이상 단일 데모 프로젝트만 보여주지 않는다
   useEffect(() => {
     let cancelled = false
-    Promise.all([getProject(LIVE_DEMO_PROJECT_ID), getTasks(LIVE_DEMO_PROJECT_ID), getTaskRisks(LIVE_DEMO_PROJECT_ID)])
-      .then(([project, tasksData, risksData]) => {
-        if (cancelled) return
-        const totalCount = tasksData.tasks.length
-        const completedCount = tasksData.tasks.filter((t) => t.done).length
-        const progressPercent = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
-        const delayedCount = risksData.risks.length
-        const memberCount = ownerNamesFromTasks(tasksData.tasks).length
-        setLiveSummary({
-          id: 'live',
-          title: project.projectTopic || project.teamName,
-          courseName: `${project.subjectName} · ${project.teamName}`,
-          memberCount,
-          dueDate: project.deadline,
-          progressPercent,
-          completedCount,
-          totalCount,
-          delayedCount,
-          status: delayedCount > 0 ? 'delayed' : progressPercent >= 100 ? 'done' : 'in-progress',
-        })
+    getProjects()
+      .then(async (data) => {
+        const summaries = await Promise.all(
+          data.projects.map(async (project) => {
+            const [tasksData, risksData] = await Promise.all([getTasks(project.id), getTaskRisks(project.id)])
+            const totalCount = tasksData.tasks.length
+            const completedCount = tasksData.tasks.filter((t) => t.done).length
+            const progressPercent = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
+            const delayedCount = risksData.risks.length
+            const memberCount = ownerNamesFromTasks(tasksData.tasks).length
+            const summary: TeamProjectSummary = {
+              id: String(project.id),
+              title: project.projectTopic || project.teamName,
+              courseName: `${project.subjectName} · ${project.teamName}`,
+              memberCount,
+              dueDate: project.deadline,
+              progressPercent,
+              completedCount,
+              totalCount,
+              delayedCount,
+              status: delayedCount > 0 ? 'delayed' : progressPercent >= 100 ? 'done' : 'in-progress',
+            }
+            return summary
+          }),
+        )
+        if (!cancelled) setBackendSummaries(summaries)
       })
       .catch(() => {
         // 실서버 연결 실패 시 조용히 생략 — 홈 화면 전체를 막지 않는다
@@ -64,7 +63,7 @@ export function HomePage() {
     }
   }, [])
 
-  const allProjectSummaries = [...(liveSummary ? [liveSummary] : []), ...teamProjectSummaries]
+  const allProjectSummaries = [...backendSummaries, ...(USE_MOCKS ? mockTeamProjectSummaries : [])]
 
   // F-08: 초대 코드로 진행 중인 팀 생성 세션에 합류한다 — 백엔드 초대 API가 없어
   // localStorage에 저장된 세션(inviteSessionStore)을 코드로 찾아 이어서 들어간다.
@@ -74,12 +73,6 @@ export function HomePage() {
       setJoinError('유효하지 않은 초대 코드입니다')
       return
     }
-    const name = joinName.trim()
-    const existing = session.members.find((m) => m.name === name)
-    const members = existing
-      ? session.members.map((m) => (m.name === name ? { ...m, joined: true } : m))
-      : [...session.members, { id: `guest-${Date.now()}`, name, department: '', isMe: false, joined: true }]
-    saveSession(session.code, members)
     navigate('/team/new', { state: { joinCode: session.code } })
   }
 
@@ -112,7 +105,6 @@ export function HomePage() {
       <div className="flex flex-col gap-6">
         <Card>
           <p className="font-semibold text-ink-900">초대 코드로 참가하기</p>
-          <p className="mt-1 text-sm text-ink-600">팀원에게 받은 초대 코드와 이름을 입력하세요.</p>
           <div className="mt-3 flex flex-col gap-2">
             <Field label="초대 코드">
               <Input
@@ -124,16 +116,8 @@ export function HomePage() {
                 }}
               />
             </Field>
-            <Field label="이름">
-              <Input placeholder="이름을 입력하세요" value={joinName} onChange={(e) => setJoinName(e.target.value)} />
-            </Field>
             {joinError ? <p className="text-sm text-danger-600">{joinError}</p> : null}
-            <Button
-              variant="secondary"
-              className="mt-1"
-              disabled={!joinCode.trim() || !joinName.trim()}
-              onClick={handleJoin}
-            >
+            <Button variant="secondary" className="mt-1" disabled={!joinCode.trim()} onClick={handleJoin}>
               참가하기
             </Button>
           </div>

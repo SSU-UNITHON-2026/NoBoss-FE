@@ -150,7 +150,11 @@ export function TeamChatPanel({
           placeholder="메시지 입력"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          onKeyDown={(e) => {
+            // 한글 등 조합형 입력 중 Enter를 누르면 조합이 끝나기 전에 전송돼 마지막 글자가
+            // 인풋에 남았다가 다시 나타나는 문제가 있었다 — 조합 중(isComposing)에는 무시한다.
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSend()
+          }}
         />
         <Button type="button" onClick={handleSend} aria-label="전송" className="shrink-0 px-2.5">
           <svg

@@ -1,5 +1,5 @@
 import { http } from '@/lib/http'
-import type { Team } from '@/types/team'
+import type { ProjectResponse } from '@/types/project'
 
 // GET /api/v1/project
-export const getProject = () => http.get<Team>('/project')
+export const getProject = () => http.get<ProjectResponse>('/project')

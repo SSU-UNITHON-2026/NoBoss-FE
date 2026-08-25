@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getProject } from '@/api/project'
 import { Button } from '@/components/ui/Button'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
@@ -17,6 +18,7 @@ import {
 } from '@/mocks/project'
 import type { ChatMessage } from '@/types/chat'
 import type { DelayAlert } from '@/types/nudge'
+import type { ProjectResponse } from '@/types/project'
 import type { RoadmapStep } from '@/types/roadmap'
 import type { Subtask } from '@/types/task'
 import type { Member } from '@/types/team'
@@ -32,6 +34,26 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const storedRecord = teamId ? getTeam(teamId) : undefined
   const isStored = Boolean(storedRecord)
   const isMockOnboard = !storedRecord && USE_MOCKS && teamId === 'p-onboard'
+  // teamId === 'live'는 백엔드에 실제로 떠 있는 단일 데모 프로젝트(GET /api/v1/project)를 그대로 보여준다.
+  // 백엔드가 아직 멀티 팀을 지원하지 않아 임시로 이 경로로만 접근한다.
+  const isLiveBackend = !storedRecord && teamId === 'live'
+  const [liveProject, setLiveProject] = useState<ProjectResponse | null>(null)
+  const [liveError, setLiveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isLiveBackend) return
+    let cancelled = false
+    getProject()
+      .then((data) => {
+        if (!cancelled) setLiveProject(data)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLiveError(err instanceof Error ? err.message : '프로젝트 정보를 불러오지 못했습니다')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isLiveBackend])
 
   const currentUserId = isMockOnboard ? 'u-yunseah' : 'me'
   const memberNameById: Record<string, string> = isMockOnboard
@@ -49,21 +71,30 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const initialSteps: RoadmapStep[] = storedRecord ? storedRecord.roadmap : isMockOnboard ? onboardRoadmap : []
   const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : []
   const initialMessages: ChatMessage[] = isMockOnboard ? onboardChatMessages : []
-  const teamInfo = storedRecord
-    ? {
-        courseName: storedRecord.team.courseName,
-        memberCount: storedRecord.team.memberCount,
-        title: `${storedRecord.team.name} — ${storedRecord.team.topic}`,
-        dueDate: storedRecord.team.dueDate,
-      }
-    : isMockOnboard
+  const teamInfo: { courseName: string; memberCount: number | null; title: string; dueDate: string | null } =
+    storedRecord
       ? {
-          courseName: onboardTeam.courseName,
-          memberCount: onboardTeam.memberCount,
-          title: `${onboardTeam.name} — ${onboardTeam.topic}`,
-          dueDate: onboardTeam.dueDate,
+          courseName: storedRecord.team.courseName,
+          memberCount: storedRecord.team.memberCount,
+          title: `${storedRecord.team.name} — ${storedRecord.team.topic}`,
+          dueDate: storedRecord.team.dueDate,
         }
-      : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null as string | null }
+      : isMockOnboard
+        ? {
+            courseName: onboardTeam.courseName,
+            memberCount: onboardTeam.memberCount,
+            title: `${onboardTeam.name} — ${onboardTeam.topic}`,
+            dueDate: onboardTeam.dueDate,
+          }
+        : isLiveBackend && liveProject
+          ? {
+              // 백엔드가 아직 인원 수를 내려주지 않는다 — 임의로 채우지 않고 null로 남긴다
+              courseName: liveProject.subjectName,
+              memberCount: null,
+              title: `${liveProject.teamName} — ${liveProject.projectTopic}`,
+              dueDate: liveProject.deadline,
+            }
+          : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null }
 
   const [steps, setSteps] = useState<RoadmapStep[]>(initialSteps)
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
@@ -152,12 +183,19 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-ink-600">
-            {teamInfo.courseName} · {teamInfo.memberCount}인 팀
+            {teamInfo.courseName} · {teamInfo.memberCount != null ? `${teamInfo.memberCount}인 팀` : '인원 정보 없음'}
           </p>
           <h1 className="text-2xl font-bold text-ink-900">{teamInfo.title}</h1>
         </div>
         <Button variant="secondary">계획 수정하기</Button>
       </div>
+
+      {isLiveBackend && !liveProject && !liveError ? (
+        <p className="mt-2 text-sm text-ink-400">실제 서버에서 프로젝트 정보를 불러오는 중…</p>
+      ) : null}
+      {isLiveBackend && liveError ? (
+        <p className="mt-2 text-sm text-danger-600">서버 연결 실패: {liveError}</p>
+      ) : null}
 
       <div className="mt-6 grid grid-cols-3 gap-4">
         <StatCard
@@ -197,7 +235,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
 
         <TeamChatPanel
           className="h-full"
-          memberCount={teamInfo.memberCount}
+          memberCount={teamInfo.memberCount ?? 1}
           messages={messages}
           currentUserId={currentUserId}
           memberNameById={memberNameById}

@@ -39,9 +39,11 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
   추측으로 연동하지 않는다 — 특히 필드명(`owner`가 멤버 id가 아니라 이름 문자열, 공동 담당은
   `"공동"` 문자열로 내려옴)과 중첩 구조(로드맵 `RoadmapStep[]`처럼 프론트가 기대하는 중첩 형태를
   백엔드가 그대로 주지 않고 평평한 리스트 + `stage`/`stageName` 필드로 내려주는 식)에 유의.
-- 인증 없음, CORS 전체 허용 — 별도 프록시 없이 `http://localhost:5173`에서 바로 호출 가능.
-  실제 서버를 보려면 `VITE_API_BASE_URL=https://noboss-api.kusitms.xyz/api/v1`로 설정한다
-  (`src/lib/http.ts` 참고, 기본값은 `/api/v1`).
+- 인증은 없지만 **CORS가 `http://localhost:5173` origin으로만 허용**되어 있다(다른 포트는
+  `403 Invalid CORS request`). Vite 기본 포트(5173)에서 `VITE_API_BASE_URL=https://noboss-api.kusitms.xyz/api/v1`로
+  설정하면 바로 호출 가능하다(`src/lib/http.ts` 참고, 기본값은 `/api/v1`). 다른 포트에서 확인해야
+  하면 `vite.config.ts`의 `server.proxy`로 우회하거나(브라우저 기준 same-origin이 되어 CORS 자체가
+  적용되지 않음), 5173에서만 테스트한다.
 - 응답 포맷은 이미 `{ success, status, data, timestamp }`로 문서화된 그대로이므로 `src/lib/http.ts`의
   기존 언래핑 로직을 그대로 쓰면 된다.
 - (2026-08-26 기준) 노출된 엔드포인트는 5개뿐 — `GET /api/v1/project`, `GET /api/v1/tasks`,
@@ -52,6 +54,9 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
   메타데이터(라벨/기한 등 5단계 뼈대)를 내려주는 엔드포인트가 없다 — `Task`마다 `stage`(숫자)+
   `stageName`(문자열)만 붙어서 온다. 5단계 로드맵 뼈대(`roadmapTemplates.ts`)는 계속 프론트에서
   구성해야 한다.
+- 백엔드가 프로젝트를 1개만 지원하므로, 실서버 연동 화면은 `/team/live` 경로로 접근한다
+  (`ProgressDashboard.tsx`의 `isLiveBackend` 분기). 로컬 mock 팀(`teamStore.ts`)이나 온보드 mock
+  데모(`p-onboard`)와는 별개 경로이니 섞어 쓰지 않는다.
 
 ## 폴더 구조 (기능 단위)
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { applyMessage, sendMessage } from '@/api/messages'
 import { getProject, updateProject } from '@/api/project'
-import { getTasks, getTaskRisks, markTaskDone } from '@/api/tasks'
+import { createTask, getTasks, getTaskRisks, markTaskDone } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { StatCard } from '@/components/ui/StatCard'
@@ -78,7 +78,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       .catch((err: unknown) => {
         if (!cancelled) setLiveError(err instanceof Error ? err.message : '프로젝트 정보를 불러오지 못했습니다')
       })
-    getTasks()
+    getTasks(LIVE_DEMO_PROJECT_ID)
       .then((data) => {
         if (cancelled) return
         setLiveTasks(data.tasks)
@@ -87,7 +87,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       .catch((err: unknown) => {
         if (!cancelled) setLiveError(err instanceof Error ? err.message : '할 일 목록을 불러오지 못했습니다')
       })
-    getTaskRisks()
+    getTaskRisks(LIVE_DEMO_PROJECT_ID)
       .then((data) => {
         if (!cancelled) setLiveRisks(mapRisksToDelayAlerts(data.risks))
       })
@@ -178,7 +178,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     if (isLiveBackend) {
       const wasDone = subtasksById[subtaskId]?.status === 'done'
       setSteps((prev) => flipDone(prev, subtaskId))
-      markTaskDone(Number(subtaskId), !wasDone).catch(() => {
+      markTaskDone(LIVE_DEMO_PROJECT_ID, Number(subtaskId), !wasDone).catch(() => {
         // 실패하면 낙관적 업데이트를 되돌린다
         setSteps((prev) => flipDone(prev, subtaskId))
       })
@@ -193,7 +193,30 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
 
   // F-18: 바로 할 일 추가 — 현재 진행 중 단계(없으면 마지막 단계)에 내 담당으로 즉시 추가
   function addQuickTask(title: string) {
-    if (!title.trim()) return
+    const trimmed = title.trim()
+    if (!trimmed) return
+
+    // 실서버 연동 화면은 진짜 POST /api/v1/projects/{id}/tasks로 업무를 생성한다
+    if (isLiveBackend) {
+      if (steps.length === 0) return
+      const targetIndex = steps.findIndex((s) => s.status === 'in-progress')
+      const index = targetIndex !== -1 ? targetIndex : steps.length - 1
+      const stage = steps[index].order
+      const dueDate = steps[index].dueDate || teamInfo.dueDate || new Date().toISOString().slice(0, 10)
+      createTask(LIVE_DEMO_PROJECT_ID, { stage, title: trimmed, owner: currentUserId, dueDate })
+        .then((created) => {
+          setLiveTasks((prev) => {
+            const next = [...(prev ?? []), created]
+            setSteps(mapTasksToRoadmap(next))
+            return next
+          })
+        })
+        .catch(() => {
+          // 생성 실패 시 조용히 무시 — 사용자는 입력창이 비워지지 않은 걸로 실패를 알 수 있다
+        })
+      return
+    }
+
     setSteps((prev) => {
       if (prev.length === 0) return prev
       const targetIndex = prev.findIndex((s) => s.status === 'in-progress')
@@ -231,7 +254,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     // 실서버 연동 화면(/team/live)은 POST /api/v1/messages로 실제 AI 응답·변경 제안을 받는다
     if (isLiveBackend) {
       try {
-        const res = await sendMessage(text)
+        const res = await sendMessage(LIVE_DEMO_PROJECT_ID, text)
         appendAiMessage(res.aiMessage, {
           aiMessageId: res.messageId,
           requiresApproval: res.actionType !== 'NONE' && res.requiresApproval,
@@ -251,7 +274,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   async function handleApproveMessage(message: ChatMessage) {
     if (message.aiMessageId == null) return
     try {
-      const result = await applyMessage(message.aiMessageId)
+      const result = await applyMessage(LIVE_DEMO_PROJECT_ID, message.aiMessageId)
       setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, applied: true } : m)))
 
       if (result.project) setLiveProject(result.project)

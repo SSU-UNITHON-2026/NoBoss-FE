@@ -46,23 +46,27 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
   적용되지 않음), 5173에서만 테스트한다.
 - 응답 포맷은 이미 `{ success, status, data, timestamp }`로 문서화된 그대로이므로 `src/lib/http.ts`의
   기존 언래핑 로직을 그대로 쓰면 된다.
-- (2026-08-26 기준) 노출된 엔드포인트는 9개 — `GET/POST /api/v1/projects`,
-  `GET/PATCH /api/v1/projects/{projectId}`, `GET /api/v1/tasks`, `GET /api/v1/tasks/risks`,
-  `PATCH /api/v1/tasks/{taskId}/done`, `POST /api/v1/messages`, `POST /api/v1/messages/{messageId}/apply`,
-  `GET /api/health`. **`GET /api/v1/project`(단수형) 엔드포인트는 제거됐다 — 이제 500을 반환한다.**
-  프로젝트 상세 조회는 반드시 `GET /api/v1/projects/{projectId}`를 써야 한다(`src/api/project.ts`
-  참고). 팀원 초대/멤버/채팅 로그/독촉/퀵애드(업무 생성) 관련 엔드포인트는 아직 없다 — 해당 기능은
-  백엔드가 추가되기 전까지 계속 `teamStore.ts`/`nudgeStore.ts`(localStorage) mock으로 유지한다.
-- 백엔드가 `POST /api/v1/projects`로 멀티 프로젝트 생성을 지원하기 시작했지만, `tasks`/`tasks/risks`/
-  `messages` 엔드포인트는 아직 프로젝트 단위로 분리되지 않았다(요청에 projectId를 받지 않음) — 즉
-  프로젝트를 여러 개 만들어도 업무·채팅은 여전히 하나의 전역 목록을 공유한다. 로드맵 단계(stage)
-  자체의 메타데이터(라벨/기한 등 5단계 뼈대)를 내려주는 엔드포인트도 없다 — `Task`마다 `stage`(숫자)+
+- (2026-08-26 기준) **모든 프로젝트 하위 리소스가 `/api/v1/projects/{projectId}/...`로 완전히
+  스코프됐다** — `tasks`/`tasks/risks`/`messages`도 이제 projectId를 받는다. 노출된 엔드포인트 12개:
+  `GET/POST /api/v1/projects`, `GET/PATCH /api/v1/projects/{projectId}`,
+  `GET/POST /api/v1/projects/{projectId}/tasks`, `PATCH/DELETE /api/v1/projects/{projectId}/tasks/{taskId}`,
+  `PATCH /api/v1/projects/{projectId}/tasks/{taskId}/done`, `GET /api/v1/projects/{projectId}/tasks/risks`,
+  `POST /api/v1/projects/{projectId}/messages`, `POST /api/v1/projects/{projectId}/messages/{messageId}/apply`,
+  `GET /api/health`. **비-중첩 구버전(`GET /api/v1/project`, `/tasks`, `/tasks/risks`, `/messages` 등)은
+  전부 제거됐다 — 이제 500을 반환한다.** `src/api/project.ts`/`tasks.ts`/`messages.ts`의 모든 함수가
+  `projectId`를 첫 인자로 받도록 이미 맞춰뒀다 — 새 API 함수를 추가할 때도 이 규칙을 따를 것.
+  업무 생성(`POST tasks`)·수정(`PATCH tasks/{id}`)·삭제(`DELETE tasks/{id}`)가 새로 생겨서 F-18(바로
+  할 일 추가)이 `/team/live`에서 실제로 백엔드에 저장된다(`ProgressDashboard.tsx`의 `addQuickTask`
+  참고). 팀원 초대/멤버/채팅 로그/독촉 관련 엔드포인트는 여전히 없다 — 해당 기능은 백엔드가 추가되기
+  전까지 계속 `teamStore.ts`/`nudgeStore.ts`(localStorage) mock으로 유지한다. 로드맵 단계(stage) 자체의
+  메타데이터(라벨/기한 등 5단계 뼈대)를 내려주는 엔드포인트도 아직 없다 — `Task`마다 `stage`(숫자)+
   `stageName`(문자열)만 붙어서 온다. 5단계 로드맵 뼈대(`roadmapTemplates.ts`)는 계속 프론트에서
   구성해야 한다.
-- 실서버 연동 화면은 `/team/live` 경로로 접근한다(`ProgressDashboard.tsx`의 `isLiveBackend` 분기,
-  `LIVE_DEMO_PROJECT_ID = 1`로 고정). tasks/messages가 아직 프로젝트별로 분리되지 않는 한 이 방식을
-  유지한다. 로컬 mock 팀(`teamStore.ts`)이나 온보드 mock 데모(`p-onboard`)와는 별개 경로이니 섞어
-  쓰지 않는다.
+- `POST /api/v1/projects`로 새 프로젝트를 만들 수는 있지만, 프론트에서 아직 **연동하지 않는다** —
+  팀원 초대/멤버 API가 없어서 새로 만든 프로젝트에 실제 팀원을 등록할 방법이 없기 때문. 이 gap이
+  해소되기 전까진 실서버 연동 화면을 `/team/live` 경로 하나로 유지한다(`ProgressDashboard.tsx`의
+  `isLiveBackend` 분기, `LIVE_DEMO_PROJECT_ID = 1`로 고정). 로컬 mock 팀(`teamStore.ts`)이나 온보드
+  mock 데모(`p-onboard`)와는 별개 경로이니 섞어 쓰지 않는다.
 - **모든 API는 반드시 `https://noboss-api.kusitms.xyz`(이 섹션 맨 위) 하나로만 받는다.** AI 관련
   기능(공동설정 채팅 자연어 파싱 등, F-28)도 예외 없이 이 백엔드를 통해서만 연동한다.
   `https://web-production-dc097.up.railway.app`(별도 FastAPI AI 서비스)는 **프론트에서 절대 직접

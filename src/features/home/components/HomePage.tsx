@@ -38,7 +38,7 @@ export function HomePage() {
   // 실서버 데모 프로젝트(/team/live)도 항상 목록에 노출한다
   useEffect(() => {
     let cancelled = false
-    Promise.all([getProject(LIVE_DEMO_PROJECT_ID), getTasks(), getTaskRisks()])
+    Promise.all([getProject(LIVE_DEMO_PROJECT_ID), getTasks(LIVE_DEMO_PROJECT_ID), getTaskRisks(LIVE_DEMO_PROJECT_ID)])
       .then(([project, tasksData, risksData]) => {
         if (cancelled) return
         const totalCount = tasksData.tasks.length

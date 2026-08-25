@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamChatPanel'
-import { isAiMention } from '@/lib/chat'
+import { AI_MENTION, isAiMention } from '@/lib/chat'
 import { computeContributions } from '@/lib/contribution'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
@@ -258,6 +258,12 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   }
 
   function requestReassign() {
+    // 실서버 연동 화면은 진짜 POST /api/v1/messages로 재분배 제안을 요청한다
+    if (isLiveBackend) {
+      void handleSend(`${AI_MENTION} 업무를 재분배해줘`)
+      return
+    }
+
     setMessages((prev) => [
       ...prev,
       {

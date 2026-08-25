@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { applyMessage, sendMessage } from '@/api/messages'
 import { getProject, updateProject } from '@/api/project'
-import { createTask, getTasks, getTaskRisks, markTaskDone } from '@/api/tasks'
+import { createTask, deleteTask, getTasks, getTaskRisks, markTaskDone } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { StatCard } from '@/components/ui/StatCard'
@@ -12,6 +12,7 @@ import { computeContributions } from '@/lib/contribution'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
 import { mapRisksToDelayAlerts, mapTasksToRoadmap, ownerNamesFromTasks } from '@/lib/taskMapping'
+import { LIVE_DEMO_PROJECT_ID, LIVE_DEMO_USER } from '@/lib/liveDemo'
 import { getTeam, updateRoadmap } from '@/lib/teamStore'
 import {
   members as mockMembers,
@@ -35,13 +36,6 @@ import { RoadmapStepList } from './RoadmapStepList'
 interface ProgressDashboardProps {
   teamId?: string
 }
-
-// 백엔드에 인증/멤버 API가 없어 "나"를 특정할 방법이 없다 — 기존 온보드 mock 데모와 동일하게
-// 윤세아를 로그인 사용자로 고정한다.
-const LIVE_DEMO_USER = '윤세아'
-// 백엔드가 멀티 프로젝트(GET/POST /api/v1/projects)를 지원하기 시작했지만, tasks/risks/messages
-// 엔드포인트는 아직 프로젝트 단위로 분리되지 않았다 — 지금은 유일하게 존재하는 데모 프로젝트(id=1)를 그대로 쓴다.
-const LIVE_DEMO_PROJECT_ID = 1
 
 export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const storedRecord = teamId ? getTeam(teamId) : undefined
@@ -207,7 +201,16 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
         .then((created) => {
           setLiveTasks((prev) => {
             const next = [...(prev ?? []), created]
-            setSteps(mapTasksToRoadmap(next))
+            // mapTasksToRoadmap은 서버 응답만으로 다시 구성하므로 isQuickAdd 플래그가 없다 —
+            // 방금 만든 항목에만 수동으로 표시해 삭제 버튼이 뜨도록 한다
+            setSteps(
+              mapTasksToRoadmap(next).map((step) => ({
+                ...step,
+                subtasks: step.subtasks.map((st) =>
+                  st.id === String(created.id) ? { ...st, isQuickAdd: true } : st,
+                ),
+              })),
+            )
             return next
           })
         })
@@ -233,6 +236,23 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       const next: RoadmapStep[] = prev.map((step, i) =>
         i === index ? { ...step, subtasks: [...step.subtasks, newSubtask] } : step,
       )
+      if (isStored && teamId) updateRoadmap(teamId, next)
+      return next
+    })
+  }
+
+  // 바로 할 일 추가로 만든 항목만 삭제 가능 — 원래 로드맵 템플릿에 있던 업무는 삭제 대상이 아니다
+  function deleteQuickTask(subtaskId: string) {
+    if (isLiveBackend) {
+      setSteps((prev) => prev.map((step) => ({ ...step, subtasks: step.subtasks.filter((t) => t.id !== subtaskId) })))
+      setLiveTasks((prev) => (prev ? prev.filter((t) => String(t.id) !== subtaskId) : prev))
+      deleteTask(LIVE_DEMO_PROJECT_ID, Number(subtaskId)).catch(() => {
+        // 실패해도 굳이 되돌리지 않는다 — 다음 새로고침에서 실제 서버 상태로 다시 맞춰진다
+      })
+      return
+    }
+    setSteps((prev) => {
+      const next = prev.map((step) => ({ ...step, subtasks: step.subtasks.filter((t) => t.id !== subtaskId) }))
       if (isStored && teamId) updateRoadmap(teamId, next)
       return next
     })
@@ -379,6 +399,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
           memberNameById={memberNameById}
           onToggleSubtask={toggleSubtask}
           onQuickAdd={addQuickTask}
+          onDeleteSubtask={deleteQuickTask}
         />
 
         <div ref={delayRiskPanelRef}>

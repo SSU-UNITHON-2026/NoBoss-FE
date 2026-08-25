@@ -9,6 +9,7 @@ import { Tag } from '@/components/ui/Tag'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
 import { getSessionByCode, saveSession } from '@/lib/inviteSessionStore'
+import { LIVE_DEMO_PROJECT_ID } from '@/lib/liveDemo'
 import { ownerNamesFromTasks } from '@/lib/taskMapping'
 import { listTeams, summarizeTeam } from '@/lib/teamStore'
 import { priorityItems as mockPriorityItems } from '@/mocks/home'
@@ -19,10 +20,6 @@ import { ProjectCard } from './ProjectCard'
 
 const priorityItems = USE_MOCKS ? mockPriorityItems : []
 const myPreferredTasks = USE_MOCKS ? mockCurrentUser.preferredTasks : []
-
-// 백엔드에 실제로 떠 있는 단일 데모 프로젝트(id=1) — 홈 화면 목록에도 항상 보여준다.
-// ProgressDashboard.tsx의 LIVE_DEMO_PROJECT_ID와 동일한 값.
-const LIVE_DEMO_PROJECT_ID = 1
 
 export function HomePage() {
   const navigate = useNavigate()

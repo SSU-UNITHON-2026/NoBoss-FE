@@ -20,6 +20,7 @@ interface RoadmapStepListProps {
   memberNameById: Record<string, string>
   onToggleSubtask: (subtaskId: string) => void
   onQuickAdd: (title: string) => void
+  onDeleteSubtask?: (subtaskId: string) => void
 }
 
 export function RoadmapStepList({
@@ -28,6 +29,7 @@ export function RoadmapStepList({
   memberNameById,
   onToggleSubtask,
   onQuickAdd,
+  onDeleteSubtask,
 }: RoadmapStepListProps) {
   const total = steps.flatMap((s) => s.subtasks).length
   const completed = steps.flatMap((s) => s.subtasks).filter((t) => t.status === 'done').length
@@ -94,6 +96,7 @@ export function RoadmapStepList({
                       task={task}
                       ownerLabel={task.assigneeId ? '내 담당' : '공동 할 일'}
                       onToggle={() => onToggleSubtask(task.id)}
+                      onDelete={task.isQuickAdd && onDeleteSubtask ? () => onDeleteSubtask(task.id) : undefined}
                     />
                   ))}
                 </ul>
@@ -111,7 +114,17 @@ export function RoadmapStepList({
   )
 }
 
-function SubtaskRow({ task, ownerLabel, onToggle }: { task: Subtask; ownerLabel: string; onToggle: () => void }) {
+function SubtaskRow({
+  task,
+  ownerLabel,
+  onToggle,
+  onDelete,
+}: {
+  task: Subtask
+  ownerLabel: string
+  onToggle: () => void
+  onDelete?: () => void
+}) {
   const done = task.status === 'done'
   return (
     <li
@@ -128,6 +141,16 @@ function SubtaskRow({ task, ownerLabel, onToggle }: { task: Subtask; ownerLabel:
       <Badge tone={done ? 'neutral' : task.status === 'delayed' ? 'danger' : 'brand'}>
         {done ? '완료' : formatDday(task.dueDate)}
       </Badge>
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="바로 추가한 할 일 삭제"
+          className="shrink-0 text-ink-400 hover:text-danger-600"
+        >
+          ×
+        </button>
+      ) : null}
     </li>
   )
 }

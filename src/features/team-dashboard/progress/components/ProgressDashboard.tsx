@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getProject } from '@/api/project'
-import { getTasks, markTaskDone } from '@/api/tasks'
+import { getTasks, getTaskRisks, markTaskDone } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
@@ -9,7 +9,7 @@ import { isAiMention } from '@/lib/chat'
 import { computeContributions } from '@/lib/contribution'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
-import { mapTasksToRoadmap, ownerNamesFromTasks } from '@/lib/taskMapping'
+import { mapRisksToDelayAlerts, mapTasksToRoadmap, ownerNamesFromTasks } from '@/lib/taskMapping'
 import { getTeam, updateRoadmap } from '@/lib/teamStore'
 import {
   members as mockMembers,
@@ -46,6 +46,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const isLiveBackend = !storedRecord && teamId === 'live'
   const [liveProject, setLiveProject] = useState<ProjectResponse | null>(null)
   const [liveTasks, setLiveTasks] = useState<TaskResponse[] | null>(null)
+  const [liveRisks, setLiveRisks] = useState<DelayAlert[]>([])
   const [liveError, setLiveError] = useState<string | null>(null)
   const [steps, setSteps] = useState<RoadmapStep[]>(() =>
     storedRecord ? storedRecord.roadmap : isMockOnboard ? onboardRoadmap : [],
@@ -69,6 +70,13 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       })
       .catch((err: unknown) => {
         if (!cancelled) setLiveError(err instanceof Error ? err.message : '할 일 목록을 불러오지 못했습니다')
+      })
+    getTaskRisks()
+      .then((data) => {
+        if (!cancelled) setLiveRisks(mapRisksToDelayAlerts(data.risks))
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLiveError(err instanceof Error ? err.message : '지연 위험 정보를 불러오지 못했습니다')
       })
     return () => {
       cancelled = true
@@ -99,7 +107,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
           }))
         : [{ id: currentUserId, userId: currentUserId, name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }]
 
-  const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : []
+  const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : isLiveBackend ? liveRisks : []
   const initialMessages: ChatMessage[] = isMockOnboard ? onboardChatMessages : []
   const teamInfo: { courseName: string; memberCount: number | null; title: string; dueDate: string | null } =
     storedRecord

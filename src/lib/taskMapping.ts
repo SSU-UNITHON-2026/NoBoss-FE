@@ -1,6 +1,7 @@
+import type { DelayAlert } from '@/types/nudge'
 import type { RoadmapStep, RoadmapStepStatus } from '@/types/roadmap'
 import type { Subtask } from '@/types/task'
-import type { TaskResponse } from '@/types/taskApi'
+import type { TaskResponse, TaskRiskResponse } from '@/types/taskApi'
 
 const SHARED_OWNER = '공동'
 
@@ -44,4 +45,16 @@ export function mapTasksToRoadmap(tasks: TaskResponse[]): RoadmapStep[] {
 // 백엔드에 멤버 목록 API가 없어 Task의 owner 이름에서 참여자 목록을 역추출한다
 export function ownerNamesFromTasks(tasks: TaskResponse[]): string[] {
   return [...new Set(tasks.map((t) => t.owner).filter((owner) => owner !== SHARED_OWNER))]
+}
+
+// GET /tasks/risks의 daysRemaining은 앱 전역 D-day 표기와 같은 값(남은 일수)이라
+// DelayAlert.daysOverdue 필드에 그대로 대입한다 — 필드명과 달리 실제로는 D-day 값으로 렌더링된다
+// (DelayRiskPanel의 `기한 D-{alert.daysOverdue}` 참고). suggestReassign은 백엔드가 안 주는 값이라
+// 항상 true로 채운다 — 현재 UI 어디에서도 이 값을 실제로 읽지는 않는다.
+export function mapRisksToDelayAlerts(risks: TaskRiskResponse[]): DelayAlert[] {
+  return risks.map((risk) => ({
+    subtaskId: String(risk.taskId),
+    daysOverdue: risk.daysRemaining,
+    suggestReassign: true,
+  }))
 }

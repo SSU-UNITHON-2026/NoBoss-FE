@@ -111,7 +111,7 @@ export function TeamChatPanel({
                   onClick={() => onApprove?.(message)}
                   className="mt-1.5 rounded-lg border border-brand-500 px-3 py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50/60"
                 >
-                  승인 및 적용
+                  확인하고 적용
                 </button>
               ) : null}
               {isAi && message.requiresApproval && message.applied ? (

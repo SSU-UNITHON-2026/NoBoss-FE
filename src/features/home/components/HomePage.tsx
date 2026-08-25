@@ -5,21 +5,16 @@ import { getTaskRisks, getTasks } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Field, Input } from '@/components/ui/Input'
-import { Tag } from '@/components/ui/Tag'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
 import { getSessionByCode } from '@/lib/inviteSessionStore'
-import { getPreferredTasks } from '@/lib/profileStore'
 import { ownerNamesFromTasks } from '@/lib/taskMapping'
 import { priorityItems as mockPriorityItems } from '@/mocks/home'
 import { teamProjectSummaries as mockTeamProjectSummaries } from '@/mocks/project'
-import { currentUser as mockCurrentUser } from '@/mocks/user'
 import type { TeamProjectSummary } from '@/types/team'
 import { ProjectCard, ProjectCardSkeleton } from './ProjectCard'
 
 const priorityItems = USE_MOCKS ? mockPriorityItems : []
-// F-03에서 저장한 선호 업무 태그를 그대로 보여준다 — mock 모드에서는 저장된 값이 없으면 데모 값을 쓴다
-const myPreferredTasks = getPreferredTasks(USE_MOCKS ? mockCurrentUser.preferredTasks : [])
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -154,25 +149,6 @@ export function HomePage() {
               ))}
             </ul>
           )}
-        </Card>
-
-        <Card>
-          <p className="font-semibold text-ink-900">내 선호 역할</p>
-          {myPreferredTasks.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-400">아직 선호 역할을 설정하지 않았습니다.</p>
-          ) : (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {myPreferredTasks.map((tag) => (
-                <Tag key={tag} selected disabled className="cursor-default disabled:opacity-100">
-                  {tag}
-                </Tag>
-              ))}
-            </div>
-          )}
-          <p className="mt-3 text-sm text-ink-600">저장된 선호 역할은 AI 역할 분배 제안에 활용됩니다.</p>
-          <Link to="/profile" className="mt-2 inline-block text-sm font-medium text-brand-600 hover:underline">
-            프로필 수정
-          </Link>
         </Card>
       </div>
     </div>

@@ -21,7 +21,7 @@ export function Sidebar({ usageCount, usageLimit }: SidebarProps) {
       <div>
         <div className="mb-8">
           <p className="text-lg font-bold tracking-tight text-ink-900">NOBOSS</p>
-          <p className="text-xs text-ink-400">팀장AI</p>
+          <p className="text-xs text-ink-400">업무 배분·진행 관리 AI</p>
         </div>
         <nav className="flex flex-col gap-1">
           {navItems.map((item) => (

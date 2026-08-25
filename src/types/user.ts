@@ -7,6 +7,7 @@ export const PREFERRED_TASK_TAGS = [
   '발표·커뮤니케이션',
   '개발·구현',
   '편집·검토',
+  '기타',
 ] as const
 
 export type PreferredTaskTag = (typeof PREFERRED_TASK_TAGS)[number]
@@ -18,4 +19,5 @@ export interface User {
   department: string
   studentId: string
   preferredTasks: PreferredTaskTag[]
+  interests?: string
 }

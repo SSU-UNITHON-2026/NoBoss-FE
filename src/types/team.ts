@@ -22,3 +22,17 @@ export interface Team {
   memberCount: number
   members: Member[]
 }
+
+/** 홈/To Do List 카드에서 쓰는 요약 뷰 */
+export interface TeamProjectSummary {
+  id: string
+  title: string
+  courseName: string
+  memberCount: number
+  dueDate: string
+  progressPercent: number
+  completedCount: number
+  totalCount: number
+  delayedCount: number
+  status: 'delayed' | 'in-progress' | 'done'
+}

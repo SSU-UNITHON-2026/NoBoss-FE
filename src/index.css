@@ -1,1 +1,27 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap");
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Noto Sans KR", system-ui, sans-serif;
+
+  --color-brand-50: #eef4fe;
+  --color-brand-100: #dde8fd;
+  --color-brand-500: #2f6fe0;
+  --color-brand-600: #1f57bd;
+  --color-brand-700: #174392;
+
+  --color-ink-900: #10131a;
+  --color-ink-600: #46505f;
+  --color-ink-400: #57616f;
+
+  --color-surface-muted: #f8fafd;
+  --color-surface-border: #e2e7ef;
+
+  --color-danger-50: #fdeeee;
+  --color-danger-500: #e0392f;
+  --color-danger-600: #bd1f1f;
+}
+
+body {
+  color: var(--color-ink-900);
+}

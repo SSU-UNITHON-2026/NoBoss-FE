@@ -16,6 +16,7 @@ interface TeamChatPanelProps {
   memberNameById: Record<string, string>
   quickActions?: QuickAction[]
   onSend?: (text: string) => void
+  className?: string
 }
 
 export function TeamChatPanel({
@@ -26,6 +27,7 @@ export function TeamChatPanel({
   memberNameById,
   quickActions,
   onSend,
+  className,
 }: TeamChatPanelProps) {
   const [draft, setDraft] = useState('')
 
@@ -37,13 +39,13 @@ export function TeamChatPanel({
   }
 
   return (
-    <div className="rounded-lg border border-surface-border">
+    <div className={cn('flex flex-col rounded-lg border border-surface-border', className)}>
       <div className="flex items-center justify-between border-b border-surface-border px-5 py-3">
         <p className="font-semibold text-ink-900">{title}</p>
         <p className="text-sm text-ink-600">{memberCount}명 · NOBOSS AI 참여 중</p>
       </div>
 
-      <ul className="flex max-h-96 flex-col gap-3 overflow-y-auto px-5 py-4">
+      <ul className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
         {messages.map((message) => {
           const isAi = message.authorId === 'ai'
           const isMe = message.authorId === currentUserId

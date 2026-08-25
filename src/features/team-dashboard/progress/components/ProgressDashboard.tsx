@@ -99,32 +99,34 @@ export function ProgressDashboard() {
       </div>
 
       <div className="mt-6 grid grid-cols-[1fr_360px] gap-6">
-        <RoadmapStepList
-          steps={steps}
-          currentUserId={currentUserId}
-          memberNameById={memberNameById}
-          onToggleSubtask={toggleSubtask}
-        />
-
         <div className="flex flex-col gap-6">
+          <RoadmapStepList
+            steps={steps}
+            currentUserId={currentUserId}
+            memberNameById={memberNameById}
+            onToggleSubtask={toggleSubtask}
+          />
+
           <DelayRiskPanel
             alerts={activeDelayAlerts}
             subtasksById={subtasksById}
             memberNameById={memberNameById}
             onReviewReassign={requestReassign}
           />
-          <TeamChatPanel
-            memberCount={teamInfo.memberCount}
-            messages={messages}
-            currentUserId={currentUserId}
-            memberNameById={memberNameById}
-            quickActions={[
-              { label: 'AI 리마인드 보내기', onClick: requestReassign },
-              { label: 'AI 재분배 제안 요청', onClick: requestReassign },
-            ]}
-            onSend={handleSend}
-          />
         </div>
+
+        <TeamChatPanel
+          className="h-full"
+          memberCount={teamInfo.memberCount}
+          messages={messages}
+          currentUserId={currentUserId}
+          memberNameById={memberNameById}
+          quickActions={[
+            { label: 'AI 리마인드 보내기', onClick: requestReassign },
+            { label: 'AI 재분배 제안 요청', onClick: requestReassign },
+          ]}
+          onSend={handleSend}
+        />
       </div>
     </div>
   )

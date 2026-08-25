@@ -137,7 +137,7 @@ export function TeamDashboardPage() {
     <div>
       <StepIndicator current={mode.phase === 'setup' ? mode.step : 'progress'} />
       <div className="mt-8 grid grid-cols-[1fr_360px] gap-6">
-        <div>
+        <div className="flex min-h-[calc(100vh-160px)] flex-col">
           {mode.phase === 'setup' && mode.step === 'invite' && (
             <InviteStep onComplete={handleInviteComplete} joinedSession={joinedSession} />
           )}

@@ -40,34 +40,34 @@ export function InviteStep({ onComplete, joinedSession }: InviteStepProps) {
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-ink-900">팀원 초대</h2>
-      <p className="mt-1 text-sm text-ink-600">
+    <div className="flex h-full flex-col">
+      <h2 className="text-3xl font-bold text-ink-900">팀원 초대</h2>
+      <p className="mt-2 text-base text-ink-600">
         팀원이 먼저 모여야 시작합니다. 전원이 참여를 확정하면 팀명·과목을 함께 정합니다.
       </p>
 
-      <div className="mt-6 grid grid-cols-[1fr_360px] gap-6">
-        <div className="rounded-lg border border-surface-border p-5">
+      <div className="mt-8 grid flex-1 grid-cols-[1fr_380px] items-stretch gap-6">
+        <div className="rounded-xl border border-surface-border p-8">
           <div className="flex items-center justify-between">
-            <p className="font-semibold text-ink-900">참여 현황</p>
-            <p className="text-sm font-semibold text-brand-600">
+            <p className="text-lg font-semibold text-ink-900">참여 현황</p>
+            <p className="text-base font-semibold text-brand-600">
               {joinedCount} / {members.length}
             </p>
           </div>
-          <ProgressBar percent={(joinedCount / members.length) * 100} className="mt-3" />
+          <ProgressBar percent={(joinedCount / members.length) * 100} className="mt-4 h-2.5" />
 
-          <ul className="mt-4 flex flex-col gap-2.5">
+          <ul className="mt-6 flex flex-col gap-3">
             {members.map((member) => (
               <li
                 key={member.id}
-                className="flex items-center gap-3 rounded-lg border border-brand-500/30 bg-brand-50/40 px-4 py-3"
+                className="flex items-center gap-4 rounded-xl border border-brand-500/30 bg-brand-50/40 px-5 py-4"
               >
-                <Avatar name={member.name} />
+                <Avatar name={member.name} className="h-11 w-11 text-base" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-ink-900">
+                  <p className="font-medium text-ink-900">
                     {member.name} {member.isMe ? '(나)' : ''}
                   </p>
-                  {member.department ? <p className="text-sm text-ink-600">{member.department}</p> : null}
+                  {member.department ? <p className="mt-0.5 text-sm text-ink-600">{member.department}</p> : null}
                 </div>
                 {member.isMe ? (
                   <Badge tone={member.joined ? 'brand' : 'neutral'}>{member.joined ? '참여 완료' : '참여 대기'}</Badge>
@@ -80,31 +80,32 @@ export function InviteStep({ onComplete, joinedSession }: InviteStepProps) {
             ))}
           </ul>
           {members.length === 1 ? (
-            <p className="mt-3 text-sm text-ink-400">
+            <p className="mt-4 text-sm text-ink-400">
               아직 초대한 팀원이 없습니다. 우측에서 이메일을 보내거나 초대 코드를 공유하세요.
             </p>
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-5">
-          <div className="rounded-lg border border-surface-border p-5">
-            <p className="font-semibold text-ink-900">초대하기</p>
-            <div className="mt-3">
+        <div className="flex flex-col gap-6">
+          <div className="rounded-xl border border-surface-border p-8">
+            <p className="text-lg font-semibold text-ink-900">초대하기</p>
+            <div className="mt-4">
               <Field label="학교 이메일로 초대">
                 <Input
                   placeholder="이름@univ.ac.kr"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
+                  className="py-2.5"
                 />
               </Field>
-              <Button variant="secondary" className="mt-2" type="button">
+              <Button variant="secondary" className="mt-3 w-full py-2.5" type="button">
                 초대 보내기
               </Button>
             </div>
-            <div className="mt-4 border-t border-surface-border pt-4">
+            <div className="mt-6 border-t border-surface-border pt-6">
               <p className="text-sm font-medium text-ink-900">초대 코드</p>
-              <div className="mt-1.5 flex items-center justify-between rounded-lg border border-surface-border bg-surface-muted px-3 py-2">
-                <span className="text-sm text-ink-900">{inviteCode}</span>
+              <div className="mt-2 flex items-center justify-between rounded-xl border border-surface-border bg-surface-muted px-4 py-3">
+                <span className="text-base font-medium text-ink-900">{inviteCode}</span>
                 <button
                   type="button"
                   className="text-sm font-medium text-brand-600 hover:underline"
@@ -115,12 +116,23 @@ export function InviteStep({ onComplete, joinedSession }: InviteStepProps) {
               </div>
             </div>
           </div>
+
+          <div className="flex-1 rounded-xl border border-surface-border bg-surface-muted p-8">
+            <p className="text-sm font-semibold text-ink-900">다음 단계 안내</p>
+            <ul className="mt-3 flex flex-col gap-2 text-sm text-ink-600">
+              <li>· 전원이 참여를 확정하면 팀명·과목·마감기한을 함께 정합니다.</li>
+              <li>· 초대 코드는 이 세션에 한해 유효하며, 홈 화면에서 코드로도 접속할 수 있습니다.</li>
+              <li>· 우측 채팅에서 팀원과 미리 이야기를 나눌 수 있습니다.</li>
+            </ul>
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 rounded-lg border border-surface-border bg-surface-muted p-6 text-center">
+      <div className="mt-6 rounded-xl border border-surface-border bg-surface-muted p-8 text-center">
         {allJoined ? (
-          <Button onClick={() => onComplete(members, inviteCode)}>다음 단계로</Button>
+          <Button className="px-8 py-3 text-base" onClick={() => onComplete(members, inviteCode)}>
+            다음 단계로
+          </Button>
         ) : (
           <>
             <p className="font-semibold text-ink-600">전원 참여 후 다음 단계</p>

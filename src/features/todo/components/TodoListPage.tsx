@@ -110,6 +110,20 @@ export function TodoListPage() {
     setQuickTitle('')
   }
 
+  // F-18b: 바로 할 일 추가로 만든 개인 할 일만 삭제 가능 — 프로젝트에서 가져온 업무는 여기서
+  // 삭제 대상이 아니다(ProgressDashboard의 F-18 삭제 규칙과 동일한 원칙).
+  function deleteQuickItem(itemId: string) {
+    setGroups((prev) =>
+      prev
+        .map((group) =>
+          group.projectId === QUICK_GROUP_ID
+            ? { ...group, items: group.items.filter((item) => item.id !== itemId) }
+            : group,
+        )
+        .filter((group) => group.projectId !== QUICK_GROUP_ID || group.items.length > 0),
+    )
+  }
+
   // F-19: 완료 처리는 산출물(파일/링크) + 한 줄 메모 업로드를 거쳐야 한다 — 체크박스 단순 토글 금지
   function requestComplete(projectId: string, item: TodoItem) {
     if (item.done) {
@@ -238,7 +252,12 @@ export function TodoListPage() {
             </div>
             <ul className="mt-3 flex flex-col gap-2.5">
               {group.items.map((item) => (
-                <TodoRow key={item.id} item={item} onToggle={() => requestComplete(group.projectId, item)} />
+                <TodoRow
+                  key={item.id}
+                  item={item}
+                  onToggle={() => requestComplete(group.projectId, item)}
+                  onDelete={group.projectId === QUICK_GROUP_ID ? () => deleteQuickItem(item.id) : undefined}
+                />
               ))}
             </ul>
           </div>
@@ -282,7 +301,7 @@ function TodoGroupSkeleton() {
   )
 }
 
-function TodoRow({ item, onToggle }: { item: TodoItem; onToggle: () => void }) {
+function TodoRow({ item, onToggle, onDelete }: { item: TodoItem; onToggle: () => void; onDelete?: () => void }) {
   return (
     <li className="flex items-center gap-3 rounded-lg border border-brand-500/40 bg-brand-50/40 px-4 py-3">
       <input
@@ -314,6 +333,16 @@ function TodoRow({ item, onToggle }: { item: TodoItem; onToggle: () => void }) {
         ) : null}
       </div>
       <Badge tone={item.done ? 'neutral' : 'brand'}>{item.done ? '완료' : formatDday(item.dueDate)}</Badge>
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="바로 추가한 할 일 삭제"
+          className="shrink-0 text-ink-400 hover:text-danger-600"
+        >
+          ×
+        </button>
+      ) : null}
     </li>
   )
 }

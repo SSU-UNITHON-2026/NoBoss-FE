@@ -277,75 +277,70 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   }
 
   return (
-    <div>
-      <div className="flex items-start justify-between">
+    <div className="grid grid-cols-[1fr_360px] gap-6">
+      <div className="flex flex-col gap-6">
         <div>
           <p className="text-sm text-ink-600">
             {teamInfo.courseName} · {teamInfo.memberCount != null ? `${teamInfo.memberCount}인 팀` : '인원 정보 없음'}
           </p>
           <h1 className="text-2xl font-bold text-ink-900">{teamInfo.title}</h1>
         </div>
-        <Button variant="secondary">계획 수정하기</Button>
-      </div>
 
-      {isLiveBackend && !liveProject && !liveError ? (
-        <p className="mt-2 text-sm text-ink-400">실제 서버에서 프로젝트 정보를 불러오는 중…</p>
-      ) : null}
-      {isLiveBackend && liveError ? (
-        <p className="mt-2 text-sm text-danger-600">서버 연결 실패: {liveError}</p>
-      ) : null}
+        {isLiveBackend && !liveProject && !liveError ? (
+          <p className="text-sm text-ink-400">실제 서버에서 프로젝트 정보를 불러오는 중…</p>
+        ) : null}
+        {isLiveBackend && liveError ? <p className="text-sm text-danger-600">서버 연결 실패: {liveError}</p> : null}
 
-      <DelayBanner count={activeDelayAlerts.length} onReview={scrollToDelayRiskPanel} />
+        <DelayBanner count={activeDelayAlerts.length} onReview={scrollToDelayRiskPanel} />
 
-      <div className="mt-6 grid grid-cols-3 gap-4">
-        <StatCard
-          label="최종 마감까지"
-          value={teamInfo.dueDate ? formatDday(teamInfo.dueDate) : '-'}
-          hint={teamInfo.dueDate ?? '마감일 없음'}
-        />
-        <StatCard label="전체 진행률" value={`${progressPercent}%`} hint={`완료 ${completed} / 전체 ${total}`}>
-          <ProgressBar percent={progressPercent} className="mt-3" />
-        </StatCard>
-        <StatCard label="지연 위험" value={`${activeDelayAlerts.length}건`} hint="팀 전체 검토 필요" />
-      </div>
-
-      <div className="mt-6">
-        <ParticipantStatusGrid members={members} contributions={contributions} currentUserId={currentUserId} />
-      </div>
-
-      <div className="mt-6 grid grid-cols-[1fr_360px] gap-6">
-        <div className="flex flex-col gap-6">
-          <RoadmapStepList
-            steps={steps}
-            currentUserId={currentUserId}
-            memberNameById={memberNameById}
-            onToggleSubtask={toggleSubtask}
-            onQuickAdd={addQuickTask}
+        <div className="grid grid-cols-3 gap-4">
+          <StatCard
+            label="최종 마감까지"
+            value={teamInfo.dueDate ? formatDday(teamInfo.dueDate) : '-'}
+            hint={teamInfo.dueDate ?? '마감일 없음'}
           />
-
-          <div ref={delayRiskPanelRef}>
-            <DelayRiskPanel
-              alerts={activeDelayAlerts}
-              subtasksById={subtasksById}
-              memberNameById={memberNameById}
-              teamId={teamId ?? 'unknown'}
-              currentUserId={currentUserId}
-              onReviewReassign={requestReassign}
-            />
-          </div>
+          <StatCard label="전체 진행률" value={`${progressPercent}%`} hint={`완료 ${completed} / 전체 ${total}`}>
+            <ProgressBar percent={progressPercent} className="mt-3" />
+          </StatCard>
+          <StatCard label="지연 위험" value={`${activeDelayAlerts.length}건`} hint="팀 전체 검토 필요" />
         </div>
 
-        <TeamChatPanel
-          className="h-full"
-          memberCount={teamInfo.memberCount ?? 1}
-          messages={messages}
+        <ParticipantStatusGrid members={members} contributions={contributions} currentUserId={currentUserId} />
+
+        <RoadmapStepList
+          steps={steps}
           currentUserId={currentUserId}
           memberNameById={memberNameById}
-          quickActions={[{ label: 'AI 재분배 제안 요청', onClick: requestReassign }]}
-          onSend={handleSend}
-          onApprove={handleApproveMessage}
+          onToggleSubtask={toggleSubtask}
+          onQuickAdd={addQuickTask}
         />
+
+        <div ref={delayRiskPanelRef}>
+          <DelayRiskPanel
+            alerts={activeDelayAlerts}
+            subtasksById={subtasksById}
+            memberNameById={memberNameById}
+            teamId={teamId ?? 'unknown'}
+            currentUserId={currentUserId}
+            onReviewReassign={requestReassign}
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <Button variant="secondary">계획 수정하기</Button>
+        </div>
       </div>
+
+      <TeamChatPanel
+        className="sticky top-8 h-[calc(100vh-4rem)]"
+        memberCount={teamInfo.memberCount ?? 1}
+        messages={messages}
+        currentUserId={currentUserId}
+        memberNameById={memberNameById}
+        quickActions={[{ label: 'AI 재분배 제안 요청', onClick: requestReassign }]}
+        onSend={handleSend}
+        onApprove={handleApproveMessage}
+      />
     </div>
   )
 }

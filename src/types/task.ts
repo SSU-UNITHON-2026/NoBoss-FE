@@ -26,6 +26,8 @@ export interface Submission {
   subtaskId: string
   memberId: string
   fileUrl?: string
+  /** 첨부한 파일 이름 — 새로고침해도 살아남게 하려고 objectURL 대신 이름만 저장해둔다 */
+  fileName?: string
   note: string
   submittedAt: string
 }

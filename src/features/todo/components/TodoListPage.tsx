@@ -8,12 +8,23 @@ import { Field, Input } from '@/components/ui/Input'
 import { StatCard } from '@/components/ui/StatCard'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
+import { clearSubmission, getAllSubmissions, saveSubmission } from '@/lib/submissionStore'
 import { todoGroups as mockTodoGroups } from '@/mocks/todo'
 import { currentUser } from '@/mocks/user'
 import type { Submission } from '@/types/task'
 import type { TodoItem, TodoProjectGroup } from '@/types/todo'
 
-const initialGroups = USE_MOCKS ? mockTodoGroups : []
+// F-19: 저장된 산출물(F-19 완료 기록)이 있으면 mock/실서버 항목 위에 덮어써서 새로고침해도
+// 완료 기록이 살아있도록 한다
+function withStoredSubmissions(groups: TodoProjectGroup[]): TodoProjectGroup[] {
+  const stored = getAllSubmissions()
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => (item.submission || !stored[item.id] ? item : { ...item, submission: stored[item.id] })),
+  }))
+}
+
+const initialGroups = withStoredSubmissions(USE_MOCKS ? mockTodoGroups : [])
 const QUICK_GROUP_ID = 'quick'
 const CURRENT_USER_ID = 'me'
 
@@ -65,7 +76,7 @@ export function TodoListPage() {
           }),
         )
         if (cancelled) return
-        const filtered = backendGroups.filter((g): g is TodoProjectGroup => g !== null)
+        const filtered = withStoredSubmissions(backendGroups.filter((g): g is TodoProjectGroup => g !== null))
         setBackendProjectIds(new Set(data.projects.map((p) => String(p.id))))
         setGroups((prev) => [...filtered, ...prev.filter((g) => !filtered.some((f) => f.projectId === g.projectId))])
       })
@@ -134,7 +145,7 @@ export function TodoListPage() {
   }
 
   // F-20: 완료 처리 시점에 상태 자동 변경 + 타임스탬프 기록
-  function confirmSubmission(payload: { fileUrl?: string; note: string }) {
+  function confirmSubmission(payload: { fileUrl?: string; fileName?: string; note: string }) {
     if (!submissionTarget) return
     const { projectId, item } = submissionTarget
     const submission: Submission = {
@@ -142,9 +153,13 @@ export function TodoListPage() {
       subtaskId: item.id,
       memberId: CURRENT_USER_ID,
       fileUrl: payload.fileUrl,
+      fileName: payload.fileName,
       note: payload.note,
       submittedAt: new Date().toISOString(),
     }
+    // 파일 첨부는 objectURL이라 새로고침하면 깨진다 — 로컬에는 파일명만 남기고 링크는 버린다.
+    // 링크 첨부는 URL 문자열 그대로라 새로고침해도 살아남으므로 그대로 저장한다.
+    saveSubmission(item.id, payload.fileName ? { ...submission, fileUrl: undefined } : submission)
     setGroups((prev) =>
       prev.map((group) =>
         group.projectId !== projectId
@@ -180,6 +195,7 @@ export function TodoListPage() {
     if (backendProjectIds.has(projectId)) {
       markTaskDone(Number(projectId), Number(itemId), false).catch(() => {})
     }
+    clearSubmission(itemId)
   }
 
   const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups])
@@ -326,8 +342,10 @@ function TodoRow({ item, onToggle, onDelete }: { item: TodoItem; onToggle: () =>
               >
                 산출물 보기
               </a>
+            ) : item.submission.fileName ? (
+              <span className="font-medium text-ink-600">첨부: {item.submission.fileName}</span>
             ) : null}
-            {item.submission.fileUrl && item.submission.note ? ' · ' : ''}
+            {(item.submission.fileUrl || item.submission.fileName) && item.submission.note ? ' · ' : ''}
             {item.submission.note}
           </p>
         ) : null}
@@ -354,7 +372,7 @@ function SubmissionModal({
 }: {
   itemTitle: string
   onCancel: () => void
-  onSubmit: (payload: { fileUrl?: string; note: string }) => void
+  onSubmit: (payload: { fileUrl?: string; fileName?: string; note: string }) => void
 }) {
   const [mode, setMode] = useState<'file' | 'link'>('file')
   const [fileName, setFileName] = useState('')
@@ -425,7 +443,9 @@ function SubmissionModal({
           <Button
             type="button"
             disabled={!canSubmit}
-            onClick={() => onSubmit({ fileUrl: attachment, note: note.trim() })}
+            onClick={() =>
+              onSubmit({ fileUrl: attachment, fileName: mode === 'file' ? fileName : undefined, note: note.trim() })
+            }
           >
             완료 처리
           </Button>

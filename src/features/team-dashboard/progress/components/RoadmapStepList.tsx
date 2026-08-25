@@ -32,8 +32,11 @@ export function RoadmapStepList({ steps, currentUserId, memberNameById, onToggle
         </p>
       </div>
 
-      <ol className="mt-4 flex flex-col">
-        {steps.map((step) => {
+      {steps.length === 0 ? (
+        <p className="mt-4 text-sm text-ink-400">등록된 로드맵이 없습니다.</p>
+      ) : (
+        <ol className="mt-4 flex flex-col">
+          {steps.map((step) => {
           const mine = step.subtasks.filter((t) => t.assigneeId === currentUserId || t.assigneeId === null)
           const others = step.subtasks.filter((t) => t.assigneeId && t.assigneeId !== currentUserId)
           return (
@@ -68,8 +71,9 @@ export function RoadmapStepList({ steps, currentUserId, memberNameById, onToggle
               </div>
             </li>
           )
-        })}
-      </ol>
+          })}
+        </ol>
+      )}
     </div>
   )
 }

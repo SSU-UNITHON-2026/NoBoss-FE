@@ -4,21 +4,31 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { ProgressBar } from '@/components/ui/ProgressBar'
-import { inviteCode, inviteMembers as initialMembers } from '@/mocks/invite'
 
 interface InviteStepProps {
   onComplete: () => void
 }
 
-export function InviteStep({ onComplete }: InviteStepProps) {
-  const [members, setMembers] = useState(initialMembers)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const joinedCount = members.filter((m) => m.joined).length
-  const allJoined = joinedCount === members.length
+interface InviteMember {
+  id: string
+  name: string
+  department: string
+  isMe: boolean
+  joined: boolean
+}
 
-  function toggleJoin(id: string) {
-    setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, joined: !m.joined } : m)))
-  }
+const initialMembers: InviteMember[] = [{ id: 'me', name: '나', department: '', isMe: false, joined: true }]
+
+function generateInviteCode() {
+  return `NB-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+}
+
+export function InviteStep({ onComplete }: InviteStepProps) {
+  const [members] = useState(initialMembers)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteCode] = useState(generateInviteCode)
+  const joinedCount = members.filter((m) => m.joined).length
+  const allJoined = members.length > 1 && joinedCount === members.length
 
   return (
     <div>
@@ -48,14 +58,15 @@ export function InviteStep({ onComplete }: InviteStepProps) {
                   <p className="text-sm font-medium text-ink-900">
                     {member.name} {member.isMe ? '(나)' : ''}
                   </p>
-                  <p className="text-sm text-ink-600">{member.department}</p>
+                  {member.department ? <p className="text-sm text-ink-600">{member.department}</p> : null}
                 </div>
-                <button type="button" onClick={() => toggleJoin(member.id)} disabled={member.isMe}>
-                  <Badge tone={member.joined ? 'brand' : 'neutral'}>{member.joined ? '참여 완료' : '참여 대기'}</Badge>
-                </button>
+                <Badge tone={member.joined ? 'brand' : 'neutral'}>{member.joined ? '참여 완료' : '참여 대기'}</Badge>
               </li>
             ))}
           </ul>
+          <p className="mt-3 text-sm text-ink-400">
+            아직 초대한 팀원이 없습니다. 우측에서 이메일을 보내거나 초대 코드를 공유하세요.
+          </p>
         </div>
 
         <div className="flex flex-col gap-5">
@@ -96,7 +107,7 @@ export function InviteStep({ onComplete }: InviteStepProps) {
         ) : (
           <>
             <p className="font-semibold text-ink-600">전원 참여 후 다음 단계</p>
-            <p className="mt-1 text-sm text-ink-400">참여 대기 중인 팀원이 확정하면 활성화됩니다.</p>
+            <p className="mt-1 text-sm text-ink-400">팀원을 초대하고 참여를 기다려 주세요.</p>
           </>
         )}
       </div>

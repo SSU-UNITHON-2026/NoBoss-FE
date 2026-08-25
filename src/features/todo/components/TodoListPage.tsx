@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { formatDday } from '@/lib/date'
-import { todoGroups as initialGroups } from '@/mocks/todo'
-import type { TodoItem } from '@/types/todo'
+import type { TodoItem, TodoProjectGroup } from '@/types/todo'
+
+const initialGroups: TodoProjectGroup[] = []
 
 export function TodoListPage() {
   const [groups, setGroups] = useState(initialGroups)
@@ -43,7 +45,10 @@ export function TodoListPage() {
       </div>
 
       <div className="mt-8 flex flex-col gap-8">
-        {groups.map((group) => (
+        {groups.length === 0 ? (
+          <Card className="text-center text-sm text-ink-600">아직 할 일이 없습니다.</Card>
+        ) : (
+          groups.map((group) => (
           <div key={group.projectId}>
             <div className="flex items-baseline justify-between border-b border-surface-border pb-2">
               <p className="text-sm">
@@ -64,7 +69,8 @@ export function TodoListPage() {
               ))}
             </ul>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   )

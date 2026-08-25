@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamChatPanel'
-import { currentUser } from '@/mocks/user'
 import type { ChatMessage } from '@/types/chat'
 
 interface CommonInfoStepProps {
   onComplete: () => void
 }
 
-const memberNameById = { [currentUser.id]: currentUser.name }
+const currentUserId = 'me'
+const memberNameById = { [currentUserId]: '나' }
 
 export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
   const [name, setName] = useState('')
@@ -17,13 +17,13 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
-  const [memberCount, setMemberCount] = useState(4)
+  const [memberCount, setMemberCount] = useState(2)
   const [messages, setMessages] = useState<ChatMessage[]>([])
 
   function handleSend(text: string) {
     setMessages((prev) => [
       ...prev,
-      { id: `local-${prev.length}`, teamId: 'setup', authorId: currentUser.id, text, sentAt: new Date().toISOString() },
+      { id: `local-${prev.length}`, teamId: 'setup', authorId: currentUserId, text, sentAt: new Date().toISOString() },
     ])
   }
 
@@ -41,18 +41,18 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
         <div className="flex flex-col gap-4 rounded-lg border border-surface-border p-5">
           <div className="grid grid-cols-2 gap-4">
             <Field label="팀명">
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="온보드" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="팀 이름을 입력하세요" />
             </Field>
             <Field label="과목명">
               <Input
                 value={courseName}
                 onChange={(e) => setCourseName(e.target.value)}
-                placeholder="서비스디자인 캡스톤"
+                placeholder="과목명을 입력하세요"
               />
             </Field>
           </div>
           <Field label="프로젝트 주제">
-            <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="캠퍼스 중고거래 앱 UX 개선" />
+            <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="프로젝트 주제를 입력하세요" />
           </Field>
           <Field label="설명">
             <Input value={description} onChange={(e) => setDescription(e.target.value)} />
@@ -76,7 +76,7 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
         <TeamChatPanel
           memberCount={memberCount}
           messages={messages}
-          currentUserId={currentUser.id}
+          currentUserId={currentUserId}
           memberNameById={memberNameById}
           onSend={handleSend}
         />

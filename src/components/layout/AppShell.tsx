@@ -8,7 +8,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex min-h-screen bg-white">
-      <Sidebar usageCount={2} usageLimit={3} />
+      <Sidebar usageCount={0} usageLimit={3} />
       <main className="flex-1 p-8">{children}</main>
     </div>
   )

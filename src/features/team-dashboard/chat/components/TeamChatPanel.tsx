@@ -31,6 +31,7 @@ interface TeamChatPanelProps {
   memberNameById: Record<string, string>
   quickActions?: QuickAction[]
   onSend?: (text: string) => void
+  onApprove?: (message: ChatMessage) => void
   className?: string
 }
 
@@ -42,6 +43,7 @@ export function TeamChatPanel({
   memberNameById,
   quickActions,
   onSend,
+  onApprove,
   className,
 }: TeamChatPanelProps) {
   const [draft, setDraft] = useState('')
@@ -97,6 +99,18 @@ export function TeamChatPanel({
               >
                 {renderMessageText(message.text)}
               </p>
+              {isAi && message.requiresApproval && !message.applied ? (
+                <button
+                  type="button"
+                  onClick={() => onApprove?.(message)}
+                  className="mt-1.5 rounded-lg border border-brand-500 px-3 py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50/60"
+                >
+                  승인 및 적용
+                </button>
+              ) : null}
+              {isAi && message.requiresApproval && message.applied ? (
+                <p className="mt-1.5 text-xs font-medium text-brand-600">적용됨</p>
+              ) : null}
             </li>
           )
         })}

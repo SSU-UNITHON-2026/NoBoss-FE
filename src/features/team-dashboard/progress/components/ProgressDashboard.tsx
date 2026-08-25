@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { applyMessage, sendMessage } from '@/api/messages'
 import { getProject } from '@/api/project'
 import { getTasks, getTaskRisks, markTaskDone } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
@@ -200,25 +201,60 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     })
   }
 
-  // @AI로 시작하는 메시지만 AI가 응답한다 — 팀원끼리의 일반 대화는 AI 파이프라인을 타지 않는다
-  function handleSend(text: string) {
-    setMessages((prev) => {
-      const next = [
-        ...prev,
-        { id: `local-${prev.length}`, teamId: teamId ?? 'unknown', authorId: currentUserId, text, sentAt: new Date().toISOString() },
-      ]
-      if (!isAiMention(text)) return next
-      return [
-        ...next,
-        {
-          id: `local-${prev.length + 1}`,
-          teamId: teamId ?? 'unknown',
-          authorId: 'ai',
-          text: '확인했습니다. 요청하신 내용을 처리할게요.',
-          sentAt: new Date().toISOString(),
-        },
-      ]
-    })
+  function appendAiMessage(text: string, extra?: Partial<ChatMessage>) {
+    setMessages((prev) => [
+      ...prev,
+      { id: `local-${prev.length}`, teamId: teamId ?? 'unknown', authorId: 'ai', text, sentAt: new Date().toISOString(), ...extra },
+    ])
+  }
+
+  async function handleSend(text: string) {
+    setMessages((prev) => [
+      ...prev,
+      { id: `local-${prev.length}`, teamId: teamId ?? 'unknown', authorId: currentUserId, text, sentAt: new Date().toISOString() },
+    ])
+
+    // 실서버 연동 화면(/team/live)은 POST /api/v1/messages로 실제 AI 응답·변경 제안을 받는다
+    if (isLiveBackend) {
+      try {
+        const res = await sendMessage(text)
+        appendAiMessage(res.aiMessage, {
+          aiMessageId: res.messageId,
+          requiresApproval: res.actionType !== 'NONE' && res.requiresApproval,
+        })
+      } catch {
+        appendAiMessage('AI 응답을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      }
+      return
+    }
+
+    // mock/로컬 팀은 @AI로 시작하는 메시지만 AI가 응답한다 — 팀원끼리의 일반 대화는 AI 파이프라인을 타지 않는다
+    if (!isAiMention(text)) return
+    appendAiMessage('확인했습니다. 요청하신 내용을 처리할게요.')
+  }
+
+  // F-17/F-28: AI 제안은 승인해야만 반영된다 — POST /api/v1/messages/{id}/apply
+  async function handleApproveMessage(message: ChatMessage) {
+    if (message.aiMessageId == null) return
+    try {
+      const result = await applyMessage(message.aiMessageId)
+      setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, applied: true } : m)))
+
+      if (result.project) setLiveProject(result.project)
+      if (result.task) {
+        const appliedTask = result.task
+        setLiveTasks((prev) => {
+          const existing = prev ?? []
+          const index = existing.findIndex((t) => t.id === appliedTask.id)
+          const next = index === -1 ? [...existing, appliedTask] : existing.map((t, i) => (i === index ? appliedTask : t))
+          setSteps(mapTasksToRoadmap(next))
+          return next
+        })
+      }
+      appendAiMessage('적용했습니다.')
+    } catch {
+      appendAiMessage('적용에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    }
   }
 
   function requestReassign() {
@@ -301,6 +337,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
           memberNameById={memberNameById}
           quickActions={[{ label: 'AI 재분배 제안 요청', onClick: requestReassign }]}
           onSend={handleSend}
+          onApprove={handleApproveMessage}
         />
       </div>
     </div>

@@ -45,3 +45,29 @@ export function ProjectCard({ project }: { project: TeamProjectSummary }) {
     </Link>
   )
 }
+
+// 실서버 프로젝트 목록(GET /projects)을 불러오는 동안 보여주는 자리표시자 —
+// 로딩이 끝나기 전엔 목록을 아예 그리지 않아, 항목이 나중에 툭 늘어나는 레이아웃 점프를 막는다
+export function ProjectCardSkeleton() {
+  return (
+    <Card className="animate-pulse">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <div className="h-5 w-40 rounded bg-surface-muted" />
+          <div className="h-4 w-56 rounded bg-surface-muted" />
+        </div>
+        <div className="h-5 w-16 rounded-full bg-surface-muted" />
+      </div>
+      <div className="mt-5 flex items-center gap-8">
+        <div className="flex flex-col gap-2">
+          <div className="h-3 w-8 rounded bg-surface-muted" />
+          <div className="h-5 w-12 rounded bg-surface-muted" />
+        </div>
+        <div className="flex-1">
+          <div className="h-4 w-full rounded bg-surface-muted" />
+          <div className="mt-1.5 h-2 w-full rounded-full bg-surface-muted" />
+        </div>
+      </div>
+    </Card>
+  )
+}

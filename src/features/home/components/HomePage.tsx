@@ -15,7 +15,7 @@ import { priorityItems as mockPriorityItems } from '@/mocks/home'
 import { teamProjectSummaries as mockTeamProjectSummaries } from '@/mocks/project'
 import { currentUser as mockCurrentUser } from '@/mocks/user'
 import type { TeamProjectSummary } from '@/types/team'
-import { ProjectCard } from './ProjectCard'
+import { ProjectCard, ProjectCardSkeleton } from './ProjectCard'
 
 const priorityItems = USE_MOCKS ? mockPriorityItems : []
 // F-03에서 저장한 선호 업무 태그를 그대로 보여준다 — mock 모드에서는 저장된 값이 없으면 데모 값을 쓴다
@@ -24,6 +24,10 @@ const myPreferredTasks = getPreferredTasks(USE_MOCKS ? mockCurrentUser.preferred
 export function HomePage() {
   const navigate = useNavigate()
   const [backendSummaries, setBackendSummaries] = useState<TeamProjectSummary[]>([])
+  // 실서버 목록을 불러오는 동안에는 빈 배열/부분 데이터를 그리지 않는다 — 그렇지 않으면 홈에
+  // 진입한 직후 "없음" 또는 mock 항목만 보이다가 실서버 항목이 뒤늦게 끼어들며 목록이 갑자기
+  // 늘어나는 것처럼 보인다(로딩 중 상태를 안 그려서 생기는 문제였다).
+  const [projectsLoading, setProjectsLoading] = useState(true)
   const [joinCode, setJoinCode] = useState('')
   const [joinError, setJoinError] = useState<string | null>(null)
 
@@ -60,6 +64,9 @@ export function HomePage() {
       .catch(() => {
         // 실서버 연결 실패 시 조용히 생략 — 홈 화면 전체를 막지 않는다
       })
+      .finally(() => {
+        if (!cancelled) setProjectsLoading(false)
+      })
     return () => {
       cancelled = true
     }
@@ -94,7 +101,12 @@ export function HomePage() {
         </div>
 
         <div className="mt-6 flex flex-col gap-4">
-          {allProjectSummaries.length === 0 ? (
+          {projectsLoading ? (
+            <>
+              <ProjectCardSkeleton />
+              <ProjectCardSkeleton />
+            </>
+          ) : allProjectSummaries.length === 0 ? (
             <Card className="text-center text-sm text-ink-600">
               참여 중인 팀프로젝트가 없습니다. "새 팀프로젝트 만들기"로 시작하세요.
             </Card>

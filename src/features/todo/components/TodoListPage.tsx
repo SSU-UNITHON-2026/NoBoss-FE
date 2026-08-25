@@ -25,6 +25,9 @@ interface SubmissionTarget {
 export function TodoListPage() {
   const [groups, setGroups] = useState(initialGroups)
   const [backendProjectIds, setBackendProjectIds] = useState<Set<string>>(new Set())
+  // 실서버 담당 업무를 불러오는 동안에는 통계·목록을 그리지 않는다 — 그렇지 않으면 진입 직후
+  // 개수가 0(혹은 mock 값)으로 보였다가 실서버 항목이 뒤늦게 합쳐지며 목록이 늘어나는 것처럼 보인다.
+  const [todoLoading, setTodoLoading] = useState(true)
   const [quickTitle, setQuickTitle] = useState('')
   const [submissionTarget, setSubmissionTarget] = useState<SubmissionTarget | null>(null)
 
@@ -68,6 +71,9 @@ export function TodoListPage() {
       })
       .catch(() => {
         // 실서버 연결 실패 시 조용히 생략 — 개인 To Do 화면 나머지는 그대로 뜨도록 한다
+      })
+      .finally(() => {
+        if (!cancelled) setTodoLoading(false)
       })
     return () => {
       cancelled = true
@@ -176,9 +182,19 @@ export function TodoListPage() {
       <p className="mt-1 text-sm text-ink-600">내가 맡은 할 일만 모았습니다. 완료 처리는 직접 하고, 언제든 되돌릴 수 있습니다.</p>
 
       <div className="mt-6 grid grid-cols-3 gap-4">
-        <StatCard label="남은 내 할 일" value={`${remaining.length}건`} />
-        <StatCard label="가장 급한 기한" value={nearestDue ? formatDday(nearestDue) : '-'} />
-        <StatCard label="완료" value={`${completed.length}건`} />
+        {todoLoading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <StatCard label="남은 내 할 일" value={`${remaining.length}건`} />
+            <StatCard label="가장 급한 기한" value={nearestDue ? formatDday(nearestDue) : '-'} />
+            <StatCard label="완료" value={`${completed.length}건`} />
+          </>
+        )}
       </div>
 
       <div className="mt-6 flex gap-2">
@@ -197,7 +213,12 @@ export function TodoListPage() {
       </div>
 
       <div className="mt-8 flex flex-col gap-8">
-        {groups.length === 0 ? (
+        {todoLoading ? (
+          <>
+            <TodoGroupSkeleton />
+            <TodoGroupSkeleton />
+          </>
+        ) : groups.length === 0 ? (
           <Card className="text-center text-sm text-ink-600">아직 할 일이 없습니다.</Card>
         ) : (
           groups.map((group) => (
@@ -232,6 +253,31 @@ export function TodoListPage() {
           onSubmit={confirmSubmission}
         />
       ) : null}
+    </div>
+  )
+}
+
+// 실서버 담당 업무(GET /projects → 프로젝트별 tasks)를 불러오는 동안 보여주는 자리표시자
+function StatCardSkeleton() {
+  return (
+    <Card className="animate-pulse">
+      <div className="h-4 w-20 rounded bg-surface-muted" />
+      <div className="mt-3 h-8 w-14 rounded bg-surface-muted" />
+    </Card>
+  )
+}
+
+function TodoGroupSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="flex items-baseline justify-between border-b border-surface-border pb-2">
+        <div className="h-4 w-48 rounded bg-surface-muted" />
+        <div className="h-4 w-16 rounded bg-surface-muted" />
+      </div>
+      <div className="mt-3 flex flex-col gap-2.5">
+        <div className="h-12 rounded-lg bg-surface-muted" />
+        <div className="h-12 rounded-lg bg-surface-muted" />
+      </div>
     </div>
   )
 }

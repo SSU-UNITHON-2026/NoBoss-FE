@@ -17,6 +17,7 @@ function memberName(id: string | null) {
 
 export function AssignmentStep({ onComplete }: AssignmentStepProps) {
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({})
+  const [exchangeRequested, setExchangeRequested] = useState<Record<string, boolean>>({})
   const allConfirmed = proposal.every((t) => confirmed[t.id])
 
   return (
@@ -41,12 +42,19 @@ export function AssignmentStep({ onComplete }: AssignmentStepProps) {
               </div>
               {confirmed[task.id] ? (
                 <Badge tone="brand">확인 완료</Badge>
+              ) : exchangeRequested[task.id] ? (
+                <Badge tone="neutral">교환 요청됨</Badge>
               ) : (
                 <div className="flex gap-2">
                   <Button variant="secondary" onClick={() => setConfirmed((p) => ({ ...p, [task.id]: true }))}>
                     확인
                   </Button>
-                  <Button variant="ghost">교환 요청</Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setExchangeRequested((p) => ({ ...p, [task.id]: true }))}
+                  >
+                    교환 요청
+                  </Button>
                 </div>
               )}
             </li>

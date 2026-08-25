@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { USE_MOCKS } from '@/lib/env'
@@ -12,14 +13,7 @@ export interface CommonInfoValue {
   memberCount: number
 }
 
-export type CommonInfoField = keyof CommonInfoValue
-
 interface CommonInfoStepProps {
-  value: CommonInfoValue
-  // F-28: 우측 채팅에서 AI가 추출한 값도 이 폼에 반영해야 해서 부모(TeamDashboardPage)가
-  // 상태를 들고 있는 controlled component로 바꿨다. 필드 단위로 넘겨야 "사용자가 직접 고친
-  // 필드"를 구분해 AI가 덮어쓰지 않도록 표시할 수 있다.
-  onFieldChange: (field: CommonInfoField, value: string | number) => void
   onComplete: (value: CommonInfoValue) => void
 }
 
@@ -29,8 +23,15 @@ const placeholder = {
   topic: USE_MOCKS ? onboardTeam.topic : '프로젝트 주제를 입력하세요',
 }
 
-export function CommonInfoStep({ value, onFieldChange, onComplete }: CommonInfoStepProps) {
-  const canProceed = value.name.trim() && value.courseName.trim() && value.topic.trim() && value.dueDate
+export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
+  const [name, setName] = useState('')
+  const [courseName, setCourseName] = useState('')
+  const [topic, setTopic] = useState('')
+  const [description, setDescription] = useState('')
+  const [dueDate, setDueDate] = useState('')
+  const [memberCount, setMemberCount] = useState(USE_MOCKS ? onboardTeam.memberCount : 2)
+
+  const canProceed = name.trim() && courseName.trim() && topic.trim() && dueDate
 
   return (
     <div>
@@ -43,48 +44,43 @@ export function CommonInfoStep({ value, onFieldChange, onComplete }: CommonInfoS
       <div className="mt-6 flex flex-col gap-4 rounded-lg border border-surface-border p-5">
         <div className="grid grid-cols-2 gap-4">
           <Field label="팀명">
-            <Input
-              value={value.name}
-              onChange={(e) => onFieldChange('name', e.target.value)}
-              placeholder={placeholder.name}
-            />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={placeholder.name} />
           </Field>
           <Field label="과목명">
             <Input
-              value={value.courseName}
-              onChange={(e) => onFieldChange('courseName', e.target.value)}
+              value={courseName}
+              onChange={(e) => setCourseName(e.target.value)}
               placeholder={placeholder.courseName}
             />
           </Field>
         </div>
         <Field label="프로젝트 주제">
-          <Input
-            value={value.topic}
-            onChange={(e) => onFieldChange('topic', e.target.value)}
-            placeholder={placeholder.topic}
-          />
+          <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={placeholder.topic} />
         </Field>
         <Field label="설명">
-          <Input value={value.description} onChange={(e) => onFieldChange('description', e.target.value)} />
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="마감기한">
-            <Input type="date" value={value.dueDate} onChange={(e) => onFieldChange('dueDate', e.target.value)} />
+            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </Field>
           <Field label="참여인원">
             <Input
               type="number"
               min={2}
               max={10}
-              value={value.memberCount}
-              onChange={(e) => onFieldChange('memberCount', Number(e.target.value))}
+              value={memberCount}
+              onChange={(e) => setMemberCount(Number(e.target.value))}
             />
           </Field>
         </div>
       </div>
 
       <div className="mt-6 flex justify-end">
-        <Button onClick={() => onComplete(value)} disabled={!canProceed}>
+        <Button
+          onClick={() => onComplete({ name, courseName, topic, description, dueDate, memberCount })}
+          disabled={!canProceed}
+        >
           다음 단계로
         </Button>
       </div>

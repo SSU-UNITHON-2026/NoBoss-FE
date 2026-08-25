@@ -18,13 +18,3 @@ export function splitAiMention(text: string): { mention: string; rest: string } 
   if (!match) return null
   return { mention: match[0].trim(), rest: trimmed.slice(match[0].length) }
 }
-
-// F-28: "팀명을 추천해드릴까요?" 제안에 대한 동의 여부를 가볍게 판별한다.
-// 주의: JS 정규식의 \b(단어 경계)는 아스키 [A-Za-z0-9_] 기준이라 한글 뒤에서는 전혀 매치되지
-// 않는다 — "응 추천해줘"처럼 한글 다음에 공백이 와도 \b가 성립하지 않아 "응"이 안 걸린다.
-// 그래서 \b 대신 공백/문장부호/끝을 직접 lookahead로 확인한다.
-const AFFIRMATIVE_PATTERN = /^(응|어|네|넹|그래|좋아|좋지|콜|추천해\s*줘|추천|ok|okay|yes|y)(?=$|[\s.,!?~])/i
-
-export function isAffirmativeReply(text: string): boolean {
-  return AFFIRMATIVE_PATTERN.test(text.trim())
-}

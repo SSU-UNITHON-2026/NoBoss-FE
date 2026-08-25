@@ -8,8 +8,10 @@ import { CommonInfoStep, type CommonInfoValue } from '@/features/team-dashboard/
 import { InviteStep } from '@/features/team-dashboard/invite/components/InviteStep'
 import { ProgressDashboard } from '@/features/team-dashboard/progress/components/ProgressDashboard'
 import { TemplateRoadmapStep } from '@/features/team-dashboard/roadmap/components/TemplateRoadmapStep'
+import { buildAssignmentSlots } from '@/lib/assignment'
 import { isAiMention } from '@/lib/chat'
 import { deleteSession, getSessionByCode } from '@/lib/inviteSessionStore'
+import { getPreferredTasks } from '@/lib/profileStore'
 import { TASK_TEMPLATES } from '@/lib/roadmapTemplates'
 import type { InviteMember } from '@/mocks/invite'
 import type { ChatMessage } from '@/types/chat'
@@ -91,10 +93,13 @@ export function TeamDashboardPage() {
     if (!commonInfo) return
 
     const template = TASK_TEMPLATES.find((t) => t.type === templateType) ?? TASK_TEMPLATES[0]
-    // F-08: 초대 단계에서 참여를 확정한 팀원 명단으로 콜드스타트 균등 배정(F-09)한다.
+    // F-08→F-09/F-10 라이트: 초대 단계에서 참여를 확정한 팀원 명단으로 콜드스타트 균등 배정하되,
+    // "나"의 프로필 선호 태그가 단계와 겹치면 살짝 우선 배정한다 — AssignmentStep이 보여준 제안과
+    // 정확히 같은 함수(buildAssignmentSlots)를 써야 배정이 어긋나지 않는다.
     // 백엔드 owner 필드는 멤버 id가 아니라 이름 문자열이다.
-    const joinedNames = inviteMembers.filter((m) => m.joined).map((m) => m.name)
-    const owners = joinedNames.length > 0 ? joinedNames : ['나']
+    const me = inviteMembers.find((m) => m.isMe)
+    const preferredTagsByName = me ? { [me.name]: getPreferredTasks() } : {}
+    const assignmentSlots = buildAssignmentSlots(inviteMembers, preferredTagsByName)
 
     setIsCreatingProject(true)
     setCreateError(null)
@@ -114,7 +119,7 @@ export function TeamDashboardPage() {
         template.steps.map((label, i) => {
           const ratio = (i + 1) / template.steps.length
           const dueDate = new Date(start.getTime() + totalMs * ratio).toISOString().slice(0, 10)
-          const owner = owners[i % owners.length]
+          const owner = assignmentSlots[i].owner
           return createTask(project.id, { stage: i + 1, title: label, owner, dueDate })
         }),
       )
@@ -139,7 +144,9 @@ export function TeamDashboardPage() {
           {mode.phase === 'setup' && mode.step === 'common-info' && (
             <CommonInfoStep onComplete={handleCommonInfoComplete} />
           )}
-          {mode.phase === 'setup' && mode.step === 'assignment' && <AssignmentStep onComplete={advance} />}
+          {mode.phase === 'setup' && mode.step === 'assignment' && (
+            <AssignmentStep onComplete={advance} members={inviteMembers} />
+          )}
           {mode.phase === 'setup' && mode.step === 'roadmap' && (
             <TemplateRoadmapStep
               onComplete={(type) => void handleRoadmapComplete(type)}

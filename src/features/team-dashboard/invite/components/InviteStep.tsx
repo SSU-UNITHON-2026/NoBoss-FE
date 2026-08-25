@@ -14,7 +14,7 @@ interface InviteStepProps {
   joinedSession?: { code: string; members: InviteMember[] }
 }
 
-const emptyMembers: InviteMember[] = [{ id: 'me', name: '나', department: '', isMe: false, joined: true }]
+const emptyMembers: InviteMember[] = [{ id: 'me', name: '나', department: '', isMe: true, joined: true }]
 
 function generateInviteCode() {
   return `NB-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`

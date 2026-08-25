@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom'
+import { USE_MOCKS } from '@/lib/env'
+import { currentUser as mockCurrentUser } from '@/mocks/user'
 import { emptyUser } from '@/types/user'
 import { ProfileForm } from './ProfileForm'
 
@@ -9,7 +11,7 @@ export function ProfilePage() {
     <ProfileForm
       title="프로필 설정"
       subtitle="선호 역할은 팀의 역할 분배 논의에서 참고값으로 쓰입니다."
-      initialValue={emptyUser}
+      initialValue={USE_MOCKS ? mockCurrentUser : emptyUser}
       showInterests
       submitLabel="저장"
       onSubmit={() => navigate('/home')}

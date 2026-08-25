@@ -3,9 +3,11 @@ import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { formatDday } from '@/lib/date'
-import type { TodoItem, TodoProjectGroup } from '@/types/todo'
+import { USE_MOCKS } from '@/lib/env'
+import { todoGroups as mockTodoGroups } from '@/mocks/todo'
+import type { TodoItem } from '@/types/todo'
 
-const initialGroups: TodoProjectGroup[] = []
+const initialGroups = USE_MOCKS ? mockTodoGroups : []
 
 export function TodoListPage() {
   const [groups, setGroups] = useState(initialGroups)

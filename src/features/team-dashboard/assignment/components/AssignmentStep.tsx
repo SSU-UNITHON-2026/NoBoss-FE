@@ -1,10 +1,24 @@
+import { useState } from 'react'
+import { Avatar } from '@/components/ui/Avatar'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { USE_MOCKS } from '@/lib/env'
+import { members, onboardRoadmap } from '@/mocks/project'
 
 interface AssignmentStepProps {
   onComplete: () => void
 }
 
+const proposal = USE_MOCKS ? onboardRoadmap[1].subtasks.filter((t) => t.assigneeId) : []
+
+function memberName(id: string | null) {
+  return members.find((m) => m.id === id)?.name ?? '미배정'
+}
+
 export function AssignmentStep({ onComplete }: AssignmentStepProps) {
+  const [confirmed, setConfirmed] = useState<Record<string, boolean>>({})
+  const allConfirmed = proposal.every((t) => confirmed[t.id])
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-ink-900">역할 분배</h2>
@@ -12,12 +26,38 @@ export function AssignmentStep({ onComplete }: AssignmentStepProps) {
         완료 이력이 아직 없으면 서브태스크를 균등하게 배정합니다. 각자 확인하거나 교환을 요청할 수 있습니다.
       </p>
 
-      <div className="mt-6 rounded-lg border border-surface-border p-6 text-center text-sm text-ink-400">
-        다음 단계에서 과제 유형을 선택하면 서브태스크가 생성되고, 이곳에 배분 제안이 표시됩니다.
-      </div>
+      {proposal.length === 0 ? (
+        <div className="mt-6 rounded-lg border border-surface-border p-6 text-center text-sm text-ink-400">
+          다음 단계에서 과제 유형을 선택하면 서브태스크가 생성되고, 이곳에 배분 제안이 표시됩니다.
+        </div>
+      ) : (
+        <ul className="mt-6 flex flex-col gap-2.5">
+          {proposal.map((task) => (
+            <li key={task.id} className="flex items-center gap-3 rounded-lg border border-surface-border px-4 py-3.5">
+              <Avatar name={memberName(task.assigneeId)} />
+              <div className="flex-1">
+                <p className="font-medium text-ink-900">{task.title}</p>
+                <p className="text-sm text-ink-600">제안 담당자 · {memberName(task.assigneeId)}</p>
+              </div>
+              {confirmed[task.id] ? (
+                <Badge tone="brand">확인 완료</Badge>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setConfirmed((p) => ({ ...p, [task.id]: true }))}>
+                    확인
+                  </Button>
+                  <Button variant="ghost">교환 요청</Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="mt-6 flex justify-end">
-        <Button onClick={onComplete}>다음 단계로</Button>
+        <Button onClick={onComplete} disabled={proposal.length > 0 && !allConfirmed}>
+          다음 단계로
+        </Button>
       </div>
     </div>
   )

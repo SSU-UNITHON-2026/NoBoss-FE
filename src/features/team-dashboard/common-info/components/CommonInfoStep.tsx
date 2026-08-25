@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamChatPanel'
+import { USE_MOCKS } from '@/lib/env'
+import { onboardTeam } from '@/mocks/project'
 import type { ChatMessage } from '@/types/chat'
 
 interface CommonInfoStepProps {
@@ -10,6 +12,11 @@ interface CommonInfoStepProps {
 
 const currentUserId = 'me'
 const memberNameById = { [currentUserId]: '나' }
+const placeholder = {
+  name: USE_MOCKS ? onboardTeam.name : '팀 이름을 입력하세요',
+  courseName: USE_MOCKS ? onboardTeam.courseName : '과목명을 입력하세요',
+  topic: USE_MOCKS ? onboardTeam.topic : '프로젝트 주제를 입력하세요',
+}
 
 export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
   const [name, setName] = useState('')
@@ -17,7 +24,7 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
-  const [memberCount, setMemberCount] = useState(2)
+  const [memberCount, setMemberCount] = useState(USE_MOCKS ? onboardTeam.memberCount : 2)
   const [messages, setMessages] = useState<ChatMessage[]>([])
 
   function handleSend(text: string) {
@@ -41,18 +48,18 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
         <div className="flex flex-col gap-4 rounded-lg border border-surface-border p-5">
           <div className="grid grid-cols-2 gap-4">
             <Field label="팀명">
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="팀 이름을 입력하세요" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={placeholder.name} />
             </Field>
             <Field label="과목명">
               <Input
                 value={courseName}
                 onChange={(e) => setCourseName(e.target.value)}
-                placeholder="과목명을 입력하세요"
+                placeholder={placeholder.courseName}
               />
             </Field>
           </div>
           <Field label="프로젝트 주제">
-            <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="프로젝트 주제를 입력하세요" />
+            <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={placeholder.topic} />
           </Field>
           <Field label="설명">
             <Input value={description} onChange={(e) => setDescription(e.target.value)} />

@@ -3,14 +3,15 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Tag } from '@/components/ui/Tag'
 import { formatDday } from '@/lib/date'
-import type { PriorityItem } from '@/types/home'
-import type { TeamProjectSummary } from '@/types/team'
-import type { PreferredTaskTag } from '@/types/user'
+import { USE_MOCKS } from '@/lib/env'
+import { priorityItems as mockPriorityItems } from '@/mocks/home'
+import { teamProjectSummaries as mockTeamProjectSummaries } from '@/mocks/project'
+import { currentUser as mockCurrentUser } from '@/mocks/user'
 import { ProjectCard } from './ProjectCard'
 
-const teamProjectSummaries: TeamProjectSummary[] = []
-const priorityItems: PriorityItem[] = []
-const myPreferredTasks: PreferredTaskTag[] = []
+const teamProjectSummaries = USE_MOCKS ? mockTeamProjectSummaries : []
+const priorityItems = USE_MOCKS ? mockPriorityItems : []
+const myPreferredTasks = USE_MOCKS ? mockCurrentUser.preferredTasks : []
 
 export function HomePage() {
   return (

@@ -4,31 +4,29 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { ProgressBar } from '@/components/ui/ProgressBar'
+import { USE_MOCKS } from '@/lib/env'
+import { inviteCode as mockInviteCode, inviteMembers as mockInviteMembers, type InviteMember } from '@/mocks/invite'
 
 interface InviteStepProps {
   onComplete: () => void
 }
 
-interface InviteMember {
-  id: string
-  name: string
-  department: string
-  isMe: boolean
-  joined: boolean
-}
-
-const initialMembers: InviteMember[] = [{ id: 'me', name: '나', department: '', isMe: false, joined: true }]
+const emptyMembers: InviteMember[] = [{ id: 'me', name: '나', department: '', isMe: false, joined: true }]
 
 function generateInviteCode() {
   return `NB-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 }
 
 export function InviteStep({ onComplete }: InviteStepProps) {
-  const [members] = useState(initialMembers)
+  const [members, setMembers] = useState<InviteMember[]>(USE_MOCKS ? mockInviteMembers : emptyMembers)
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteCode] = useState(generateInviteCode)
+  const [inviteCode] = useState(USE_MOCKS ? mockInviteCode : generateInviteCode)
   const joinedCount = members.filter((m) => m.joined).length
   const allJoined = members.length > 1 && joinedCount === members.length
+
+  function toggleJoin(id: string) {
+    setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, joined: !m.joined } : m)))
+  }
 
   return (
     <div>
@@ -60,13 +58,21 @@ export function InviteStep({ onComplete }: InviteStepProps) {
                   </p>
                   {member.department ? <p className="text-sm text-ink-600">{member.department}</p> : null}
                 </div>
-                <Badge tone={member.joined ? 'brand' : 'neutral'}>{member.joined ? '참여 완료' : '참여 대기'}</Badge>
+                {member.isMe ? (
+                  <Badge tone={member.joined ? 'brand' : 'neutral'}>{member.joined ? '참여 완료' : '참여 대기'}</Badge>
+                ) : (
+                  <button type="button" onClick={() => toggleJoin(member.id)}>
+                    <Badge tone={member.joined ? 'brand' : 'neutral'}>{member.joined ? '참여 완료' : '참여 대기'}</Badge>
+                  </button>
+                )}
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-sm text-ink-400">
-            아직 초대한 팀원이 없습니다. 우측에서 이메일을 보내거나 초대 코드를 공유하세요.
-          </p>
+          {members.length === 1 ? (
+            <p className="mt-3 text-sm text-ink-400">
+              아직 초대한 팀원이 없습니다. 우측에서 이메일을 보내거나 초대 코드를 공유하세요.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-5">

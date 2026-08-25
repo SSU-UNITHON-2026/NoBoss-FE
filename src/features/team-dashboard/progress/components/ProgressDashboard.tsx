@@ -3,21 +3,36 @@ import { Button } from '@/components/ui/Button'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamChatPanel'
+import { formatDday } from '@/lib/date'
+import { USE_MOCKS } from '@/lib/env'
+import {
+  members as mockMembers,
+  onboardChatMessages,
+  onboardDelayAlerts,
+  onboardRoadmap,
+  onboardTeam,
+} from '@/mocks/project'
 import type { ChatMessage } from '@/types/chat'
 import type { DelayAlert } from '@/types/nudge'
 import type { RoadmapStep } from '@/types/roadmap'
 import { DelayRiskPanel } from './DelayRiskPanel'
 import { RoadmapStepList } from './RoadmapStepList'
 
-const currentUserId = 'me'
-const memberNameById: Record<string, string> = { [currentUserId]: '나' }
+const currentUserId = USE_MOCKS ? 'u-yunseah' : 'me'
+const memberNameById: Record<string, string> = USE_MOCKS
+  ? Object.fromEntries(mockMembers.map((m) => [m.id, m.name]))
+  : { [currentUserId]: '나' }
 
-const initialSteps: RoadmapStep[] = []
-const initialDelayAlerts: DelayAlert[] = []
+const initialSteps: RoadmapStep[] = USE_MOCKS ? onboardRoadmap : []
+const initialDelayAlerts: DelayAlert[] = USE_MOCKS ? onboardDelayAlerts : []
+const initialMessages: ChatMessage[] = USE_MOCKS ? onboardChatMessages : []
+const teamInfo = USE_MOCKS
+  ? { courseName: onboardTeam.courseName, memberCount: onboardTeam.memberCount, title: `${onboardTeam.name} — ${onboardTeam.topic}`, dueDate: onboardTeam.dueDate }
+  : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null as string | null }
 
 export function ProgressDashboard() {
   const [steps, setSteps] = useState<RoadmapStep[]>(initialSteps)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
 
   const allSubtasks = useMemo(() => steps.flatMap((s) => s.subtasks), [steps])
   const subtasksById = useMemo(() => Object.fromEntries(allSubtasks.map((t) => [t.id, t])), [allSubtasks])
@@ -63,14 +78,20 @@ export function ProgressDashboard() {
     <div>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-ink-600">과목 · 인원 정보 없음</p>
-          <h1 className="text-2xl font-bold text-ink-900">프로젝트</h1>
+          <p className="text-sm text-ink-600">
+            {teamInfo.courseName} · {teamInfo.memberCount}인 팀
+          </p>
+          <h1 className="text-2xl font-bold text-ink-900">{teamInfo.title}</h1>
         </div>
         <Button variant="secondary">계획 수정하기</Button>
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-4">
-        <StatCard label="최종 마감까지" value="-" hint="마감일 없음" />
+        <StatCard
+          label="최종 마감까지"
+          value={teamInfo.dueDate ? formatDday(teamInfo.dueDate) : '-'}
+          hint={teamInfo.dueDate ?? '마감일 없음'}
+        />
         <StatCard label="전체 진행률" value={`${progressPercent}%`} hint={`완료 ${completed} / 전체 ${total}`}>
           <ProgressBar percent={progressPercent} className="mt-3" />
         </StatCard>
@@ -93,7 +114,7 @@ export function ProgressDashboard() {
             onReviewReassign={requestReassign}
           />
           <TeamChatPanel
-            memberCount={1}
+            memberCount={teamInfo.memberCount}
             messages={messages}
             currentUserId={currentUserId}
             memberNameById={memberNameById}

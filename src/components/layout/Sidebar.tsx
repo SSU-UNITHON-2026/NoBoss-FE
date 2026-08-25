@@ -17,7 +17,7 @@ export function Sidebar({ usageCount, usageLimit }: SidebarProps) {
   const usagePercent = (usageCount / usageLimit) * 100
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col justify-between border-r border-surface-border bg-white p-6">
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between overflow-y-auto border-r border-surface-border bg-white p-6">
       <div>
         <div className="mb-8">
           <p className="text-lg font-bold tracking-tight text-ink-900">NOBOSS</p>

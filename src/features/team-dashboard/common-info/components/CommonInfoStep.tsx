@@ -20,9 +20,9 @@ interface CommonInfoStepProps {
 }
 
 const placeholder = {
-  name: USE_MOCKS ? `예시: ${onboardTeam.name}` : '팀 이름을 입력하세요',
-  courseName: USE_MOCKS ? `예시: ${onboardTeam.courseName}` : '과목명을 입력하세요',
-  topic: USE_MOCKS ? `예시: ${onboardTeam.topic}` : '프로젝트 주제를 입력하세요',
+  name: USE_MOCKS ? `ex) ${onboardTeam.name}` : '팀 이름을 입력하세요',
+  courseName: USE_MOCKS ? `ex) ${onboardTeam.courseName}` : '과목명을 입력하세요',
+  topic: USE_MOCKS ? `ex) ${onboardTeam.topic}` : '프로젝트 주제를 입력하세요',
 }
 
 export function CommonInfoStep({ onComplete, aiDraft }: CommonInfoStepProps) {

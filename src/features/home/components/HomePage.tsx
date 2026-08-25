@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { getProject } from '@/api/project'
+import { getTaskRisks, getTasks } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Field, Input } from '@/components/ui/Input'
@@ -7,14 +9,20 @@ import { Tag } from '@/components/ui/Tag'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
 import { getSessionByCode, saveSession } from '@/lib/inviteSessionStore'
+import { ownerNamesFromTasks } from '@/lib/taskMapping'
 import { listTeams, summarizeTeam } from '@/lib/teamStore'
 import { priorityItems as mockPriorityItems } from '@/mocks/home'
 import { teamProjectSummaries as mockTeamProjectSummaries } from '@/mocks/project'
 import { currentUser as mockCurrentUser } from '@/mocks/user'
+import type { TeamProjectSummary } from '@/types/team'
 import { ProjectCard } from './ProjectCard'
 
 const priorityItems = USE_MOCKS ? mockPriorityItems : []
 const myPreferredTasks = USE_MOCKS ? mockCurrentUser.preferredTasks : []
+
+// 백엔드에 실제로 떠 있는 단일 데모 프로젝트(id=1) — 홈 화면 목록에도 항상 보여준다.
+// ProgressDashboard.tsx의 LIVE_DEMO_PROJECT_ID와 동일한 값.
+const LIVE_DEMO_PROJECT_ID = 1
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -22,9 +30,44 @@ export function HomePage() {
     ...(USE_MOCKS ? mockTeamProjectSummaries : []),
     ...listTeams().map(summarizeTeam),
   ])
+  const [liveSummary, setLiveSummary] = useState<TeamProjectSummary | null>(null)
   const [joinCode, setJoinCode] = useState('')
   const [joinName, setJoinName] = useState('')
   const [joinError, setJoinError] = useState<string | null>(null)
+
+  // 실서버 데모 프로젝트(/team/live)도 항상 목록에 노출한다
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([getProject(LIVE_DEMO_PROJECT_ID), getTasks(), getTaskRisks()])
+      .then(([project, tasksData, risksData]) => {
+        if (cancelled) return
+        const totalCount = tasksData.tasks.length
+        const completedCount = tasksData.tasks.filter((t) => t.done).length
+        const progressPercent = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
+        const delayedCount = risksData.risks.length
+        const memberCount = ownerNamesFromTasks(tasksData.tasks).length
+        setLiveSummary({
+          id: 'live',
+          title: project.projectTopic || project.teamName,
+          courseName: `${project.subjectName} · ${project.teamName}`,
+          memberCount,
+          dueDate: project.deadline,
+          progressPercent,
+          completedCount,
+          totalCount,
+          delayedCount,
+          status: delayedCount > 0 ? 'delayed' : progressPercent >= 100 ? 'done' : 'in-progress',
+        })
+      })
+      .catch(() => {
+        // 실서버 연결 실패 시 조용히 생략 — 홈 화면 전체를 막지 않는다
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const allProjectSummaries = [...(liveSummary ? [liveSummary] : []), ...teamProjectSummaries]
 
   // F-08: 초대 코드로 진행 중인 팀 생성 세션에 합류한다 — 백엔드 초대 API가 없어
   // localStorage에 저장된 세션(inviteSessionStore)을 코드로 찾아 이어서 들어간다.
@@ -59,12 +102,12 @@ export function HomePage() {
         </div>
 
         <div className="mt-6 flex flex-col gap-4">
-          {teamProjectSummaries.length === 0 ? (
+          {allProjectSummaries.length === 0 ? (
             <Card className="text-center text-sm text-ink-600">
               참여 중인 팀프로젝트가 없습니다. "새 팀프로젝트 만들기"로 시작하세요.
             </Card>
           ) : (
-            teamProjectSummaries.map((project) => <ProjectCard key={project.id} project={project} />)
+            allProjectSummaries.map((project) => <ProjectCard key={project.id} project={project} />)
           )}
         </div>
       </div>

@@ -138,7 +138,7 @@ export function TeamChatPanel({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
         />
-        <Button type="button" onClick={handleSend}>
+        <Button type="button" onClick={handleSend} className="shrink-0 whitespace-nowrap">
           전송
         </Button>
       </div>

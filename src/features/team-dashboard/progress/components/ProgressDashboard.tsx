@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamChatPanel'
+import { computeContributions } from '@/lib/contribution'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
 import { getTeam, updateRoadmap } from '@/lib/teamStore'
@@ -17,7 +18,9 @@ import type { ChatMessage } from '@/types/chat'
 import type { DelayAlert } from '@/types/nudge'
 import type { RoadmapStep } from '@/types/roadmap'
 import type { Subtask } from '@/types/task'
+import type { Member } from '@/types/team'
 import { DelayRiskPanel } from './DelayRiskPanel'
+import { ParticipantStatusGrid } from './ParticipantStatusGrid'
 import { RoadmapStepList } from './RoadmapStepList'
 
 interface ProgressDashboardProps {
@@ -35,6 +38,12 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     : storedRecord
       ? Object.fromEntries(storedRecord.team.members.map((m) => [m.id, m.name]))
       : { [currentUserId]: '나' }
+
+  const members: Member[] = isMockOnboard
+    ? mockMembers
+    : storedRecord
+      ? storedRecord.team.members
+      : [{ id: currentUserId, userId: currentUserId, name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }]
 
   const initialSteps: RoadmapStep[] = storedRecord ? storedRecord.roadmap : isMockOnboard ? onboardRoadmap : []
   const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : []
@@ -64,6 +73,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const total = allSubtasks.length
   const progressPercent = total === 0 ? 0 : Math.round((completed / total) * 100)
   const activeDelayAlerts = delayAlerts.filter((a) => subtasksById[a.subtaskId]?.status !== 'done')
+  const contributions = useMemo(() => computeContributions(steps), [steps])
 
   function toggleSubtask(subtaskId: string) {
     setSteps((prev) => {
@@ -144,6 +154,10 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
           <ProgressBar percent={progressPercent} className="mt-3" />
         </StatCard>
         <StatCard label="지연 위험" value={`${activeDelayAlerts.length}건`} hint="팀 전체 검토 필요" />
+      </div>
+
+      <div className="mt-6">
+        <ParticipantStatusGrid members={members} contributions={contributions} currentUserId={currentUserId} />
       </div>
 
       <div className="mt-6 grid grid-cols-[1fr_360px] gap-6">

@@ -9,5 +9,6 @@ export interface ActivityLogEntry {
 export interface Contribution {
   memberId: string
   completedCount: number
-  score: number
+  totalCount: number
+  delayedCount: number
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getProject } from '@/api/project'
+import { getTasks, markTaskDone } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
@@ -8,6 +9,7 @@ import { isAiMention } from '@/lib/chat'
 import { computeContributions } from '@/lib/contribution'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
+import { mapTasksToRoadmap, ownerNamesFromTasks } from '@/lib/taskMapping'
 import { getTeam, updateRoadmap } from '@/lib/teamStore'
 import {
   members as mockMembers,
@@ -21,6 +23,7 @@ import type { DelayAlert } from '@/types/nudge'
 import type { ProjectResponse } from '@/types/project'
 import type { RoadmapStep } from '@/types/roadmap'
 import type { Subtask } from '@/types/task'
+import type { TaskResponse } from '@/types/taskApi'
 import type { Member } from '@/types/team'
 import { DelayRiskPanel } from './DelayRiskPanel'
 import { ParticipantStatusGrid } from './ParticipantStatusGrid'
@@ -30,6 +33,10 @@ interface ProgressDashboardProps {
   teamId?: string
 }
 
+// 백엔드에 인증/멤버 API가 없어 "나"를 특정할 방법이 없다 — 기존 온보드 mock 데모와 동일하게
+// 윤세아를 로그인 사용자로 고정한다.
+const LIVE_DEMO_USER = '윤세아'
+
 export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const storedRecord = teamId ? getTeam(teamId) : undefined
   const isStored = Boolean(storedRecord)
@@ -38,7 +45,11 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   // 백엔드가 아직 멀티 팀을 지원하지 않아 임시로 이 경로로만 접근한다.
   const isLiveBackend = !storedRecord && teamId === 'live'
   const [liveProject, setLiveProject] = useState<ProjectResponse | null>(null)
+  const [liveTasks, setLiveTasks] = useState<TaskResponse[] | null>(null)
   const [liveError, setLiveError] = useState<string | null>(null)
+  const [steps, setSteps] = useState<RoadmapStep[]>(() =>
+    storedRecord ? storedRecord.roadmap : isMockOnboard ? onboardRoadmap : [],
+  )
 
   useEffect(() => {
     if (!isLiveBackend) return
@@ -50,25 +61,44 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
       .catch((err: unknown) => {
         if (!cancelled) setLiveError(err instanceof Error ? err.message : '프로젝트 정보를 불러오지 못했습니다')
       })
+    getTasks()
+      .then((data) => {
+        if (cancelled) return
+        setLiveTasks(data.tasks)
+        setSteps(mapTasksToRoadmap(data.tasks))
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLiveError(err instanceof Error ? err.message : '할 일 목록을 불러오지 못했습니다')
+      })
     return () => {
       cancelled = true
     }
   }, [isLiveBackend])
 
-  const currentUserId = isMockOnboard ? 'u-yunseah' : 'me'
+  const currentUserId = isMockOnboard ? 'u-yunseah' : isLiveBackend ? LIVE_DEMO_USER : 'me'
   const memberNameById: Record<string, string> = isMockOnboard
     ? Object.fromEntries(mockMembers.map((m) => [m.id, m.name]))
     : storedRecord
       ? Object.fromEntries(storedRecord.team.members.map((m) => [m.id, m.name]))
-      : { [currentUserId]: '나' }
+      : isLiveBackend && liveTasks
+        ? Object.fromEntries(ownerNamesFromTasks(liveTasks).map((name) => [name, name]))
+        : { [currentUserId]: '나' }
 
   const members: Member[] = isMockOnboard
     ? mockMembers
     : storedRecord
       ? storedRecord.team.members
-      : [{ id: currentUserId, userId: currentUserId, name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }]
+      : isLiveBackend && liveTasks
+        ? ownerNamesFromTasks(liveTasks).map((name) => ({
+            id: name,
+            userId: name,
+            name,
+            preferredTasks: [],
+            completedTaskCount: 0,
+            status: 'in-progress',
+          }))
+        : [{ id: currentUserId, userId: currentUserId, name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }]
 
-  const initialSteps: RoadmapStep[] = storedRecord ? storedRecord.roadmap : isMockOnboard ? onboardRoadmap : []
   const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : []
   const initialMessages: ChatMessage[] = isMockOnboard ? onboardChatMessages : []
   const teamInfo: { courseName: string; memberCount: number | null; title: string; dueDate: string | null } =
@@ -96,7 +126,6 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
             }
           : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null }
 
-  const [steps, setSteps] = useState<RoadmapStep[]>(initialSteps)
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
 
   const allSubtasks = useMemo(() => steps.flatMap((s) => s.subtasks), [steps])
@@ -107,14 +136,27 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const activeDelayAlerts = delayAlerts.filter((a) => subtasksById[a.subtaskId]?.status !== 'done')
   const contributions = useMemo(() => computeContributions(steps), [steps])
 
+  function flipDone(steps: RoadmapStep[], subtaskId: string): RoadmapStep[] {
+    return steps.map((step) => ({
+      ...step,
+      subtasks: step.subtasks.map((task) =>
+        task.id === subtaskId ? { ...task, status: task.status === 'done' ? 'in-progress' : 'done' } : task,
+      ),
+    }))
+  }
+
   function toggleSubtask(subtaskId: string) {
+    if (isLiveBackend) {
+      const wasDone = subtasksById[subtaskId]?.status === 'done'
+      setSteps((prev) => flipDone(prev, subtaskId))
+      markTaskDone(Number(subtaskId), !wasDone).catch(() => {
+        // 실패하면 낙관적 업데이트를 되돌린다
+        setSteps((prev) => flipDone(prev, subtaskId))
+      })
+      return
+    }
     setSteps((prev) => {
-      const next: RoadmapStep[] = prev.map((step) => ({
-        ...step,
-        subtasks: step.subtasks.map((task) =>
-          task.id === subtaskId ? { ...task, status: task.status === 'done' ? 'in-progress' : 'done' } : task,
-        ),
-      }))
+      const next = flipDone(prev, subtaskId)
       if (isStored && teamId) updateRoadmap(teamId, next)
       return next
     })

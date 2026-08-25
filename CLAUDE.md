@@ -46,10 +46,12 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
   적용되지 않음), 5173에서만 테스트한다.
 - 응답 포맷은 이미 `{ success, status, data, timestamp }`로 문서화된 그대로이므로 `src/lib/http.ts`의
   기존 언래핑 로직을 그대로 쓰면 된다.
-- (2026-08-26 기준) 노출된 엔드포인트는 5개뿐 — `GET /api/v1/project`, `GET /api/v1/tasks`,
-  `GET /api/v1/tasks/risks`, `PATCH /api/v1/tasks/{taskId}/done`, `GET /api/health`. 팀 생성/초대/멤버/
-  채팅/독촉/퀵애드 관련 엔드포인트는 아직 없다 — 해당 기능은 백엔드가 추가되기 전까지 계속
-  `teamStore.ts`/`nudgeStore.ts`(localStorage) mock으로 유지한다.
+- (2026-08-26 기준) 노출된 엔드포인트는 6개 — `GET /api/v1/project`, `GET /api/v1/tasks`,
+  `GET /api/v1/tasks/risks`, `PATCH /api/v1/tasks/{taskId}/done`, `GET /api/health`,
+  `POST /api/v1/messages`(AI 메시지 전송·제안 생성 — 아직 미연동, 아래 AI 백엔드와 역할이
+  겹치는지 불명확하니 연동 전 재확인). 팀 생성/초대/멤버/채팅/독촉/퀵애드 관련 엔드포인트는 아직
+  없다 — 해당 기능은 백엔드가 추가되기 전까지 계속 `teamStore.ts`/`nudgeStore.ts`/
+  `inviteSessionStore.ts`(localStorage) mock으로 유지한다.
 - 백엔드는 현재 프로젝트 1개(id=1, "B_LANK" 팀)만 하드코딩되어 있고, 로드맵 단계(stage) 자체의
   메타데이터(라벨/기한 등 5단계 뼈대)를 내려주는 엔드포인트가 없다 — `Task`마다 `stage`(숫자)+
   `stageName`(문자열)만 붙어서 온다. 5단계 로드맵 뼈대(`roadmapTemplates.ts`)는 계속 프론트에서
@@ -57,6 +59,30 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
 - 백엔드가 프로젝트를 1개만 지원하므로, 실서버 연동 화면은 `/team/live` 경로로 접근한다
   (`ProgressDashboard.tsx`의 `isLiveBackend` 분기). 로컬 mock 팀(`teamStore.ts`)이나 온보드 mock
   데모(`p-onboard`)와는 별개 경로이니 섞어 쓰지 않는다.
+
+## AI 백엔드 (공동설정 채팅 자연어 파싱 — 메인 백엔드와 별개 서버)
+
+F-28(공동설정 채팅에서 팀명·과목명·주제·설명·마감기한을 자연어로 인식해 폼에 자동 반영)을 처리하는
+전용 FastAPI 서버가 따로 떠 있다. 메인 백엔드(`noboss-api.kusitms.xyz`)와 무관한 별도 호스트다:
+- Swagger UI: https://web-production-dc097.up.railway.app/docs#/
+- 스펙 JSON: https://web-production-dc097.up.railway.app/openapi.json
+- `src/lib/env.ts`의 `AI_API_BASE_URL` (기본값이 위 URL, `VITE_AI_API_BASE_URL`로 오버라이드 가능)
+- `src/api/ai.ts`에서 호출한다. **메인 백엔드와 응답 포맷이 다르다** — `{ success, data }` 래핑이
+  없고 그대로 JSON을 반환하므로 `src/lib/http.ts`를 재사용하지 않고 `api/ai.ts` 안의 자체 `fetch`
+  래퍼(`aiPost`)를 쓴다. CORS는 `Access-Control-Allow-Origin: *`로 완전히 열려 있어 프록시 없이
+  아무 포트에서나 바로 호출 가능하다(메인 백엔드와 다름, 혼동 주의).
+- 엔드포인트 3개, 전부 `CommonInfoStep`(공동설정 단계) 채팅 전용이고 역할분배·서브태스크·투두는
+  다루지 않는다:
+  - `POST /outline/extract` — 채팅 메시지가 올 때마다(멘션 여부 무관) 호출해 팀명/과목명/주제/설명/
+    마감기한을 추출한다. 사용자가 폼에서 직접 입력한 필드는 `confirmed`로 넘겨 AI가 덮어쓰지 않게
+    한다 (`TeamDashboardPage.tsx`의 `manualFields`/`FIELD_TO_OUTLINE` 참고).
+  - `POST /team-name/suggest` — `topic`·`description`이 모두 채워지고 `team_name`이 아직 없을 때만
+    호출 대상이 된다. 먼저 "팀명을 추천해드릴까요?" 고정 문구로 물어보고, 팀원이 긍정 답변
+    (`isAffirmativeReply`, `src/lib/chat.ts`)을 보낸 다음에만 실제로 호출하는 2단계 흐름이다. 후보는
+    확정하지 않고 채팅에 나열만 한다 — 최종 선택은 사람이 폼에 직접 입력.
+  - `POST /proposal/generate` — 진행관리 단계에서 "마감을 미뤄줘" 같은 자연어 요청을 태스크/프로젝트
+    변경 제안으로 바꿔주는 엔드포인트. 아직 프론트에 연동 안 함(F-17 다이나믹 리밸런싱과 겹치는
+    영역이라 별도로 판단 필요) — 연동 전 반드시 최신 스펙 재확인.
 
 ## 폴더 구조 (기능 단위)
 

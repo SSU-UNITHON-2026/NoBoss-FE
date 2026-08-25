@@ -32,6 +32,7 @@ interface TeamChatPanelProps {
   quickActions?: QuickAction[]
   onSend?: (text: string) => void
   className?: string
+  hint?: string
 }
 
 export function TeamChatPanel({
@@ -43,6 +44,7 @@ export function TeamChatPanel({
   quickActions,
   onSend,
   className,
+  hint,
 }: TeamChatPanelProps) {
   const [draft, setDraft] = useState('')
   const hasAiMention = isAiMention(draft)
@@ -151,8 +153,12 @@ export function TeamChatPanel({
         </Button>
       </div>
       <p className="px-5 pb-3 text-xs text-ink-400">
-        <span className="font-semibold text-brand-600">{AI_MENTION}</span>로 시작한 메시지만 AI가 처리합니다. 나머지는
-        팀원끼리의 대화로만 남아요.
+        {hint ?? (
+          <>
+            <span className="font-semibold text-brand-600">{AI_MENTION}</span>로 시작한 메시지만 AI가 처리합니다.
+            나머지는 팀원끼리의 대화로만 남아요.
+          </>
+        )}
       </p>
     </div>
   )

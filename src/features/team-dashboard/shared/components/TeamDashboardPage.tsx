@@ -9,6 +9,7 @@ import { TemplateRoadmapStep } from '@/features/team-dashboard/roadmap/component
 import { isAiMention } from '@/lib/chat'
 import { buildRoadmapFromTemplate } from '@/lib/roadmapTemplates'
 import { createTeam } from '@/lib/teamStore'
+import type { InviteMember } from '@/mocks/invite'
 import type { ChatMessage } from '@/types/chat'
 import type { TeamDashboardMode, TeamDashboardSetupStep } from '@/types/dashboard'
 import type { TaskTemplateType } from '@/types/task'
@@ -24,6 +25,7 @@ export function TeamDashboardPage() {
   const navigate = useNavigate()
   const [mode, setMode] = useState<TeamDashboardMode>({ phase: 'setup', step: 'invite' })
   const [commonInfo, setCommonInfo] = useState<CommonInfoValue | null>(null)
+  const [inviteMembers, setInviteMembers] = useState<InviteMember[]>([])
   // F-23: 초기 설정 4단계 전체에서 채팅이 상시 노출돼야 하므로, 오케스트레이터가 채팅 상태를
   // 들고 있고 각 단계는 좌측 콘텐츠만 렌더링한다 — 단계 전환에도 대화 내역이 끊기지 않는다.
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -38,6 +40,11 @@ export function TeamDashboardPage() {
     const index = setupOrder.indexOf(mode.step)
     const next = setupOrder[index + 1]
     if (next) setMode({ phase: 'setup', step: next })
+  }
+
+  function handleInviteComplete(members: InviteMember[]) {
+    setInviteMembers(members)
+    advance()
   }
 
   function handleCommonInfoComplete(value: CommonInfoValue) {
@@ -78,9 +85,19 @@ export function TeamDashboardPage() {
       description: commonInfo.description,
       dueDate: commonInfo.dueDate,
       memberCount: commonInfo.memberCount,
-      members: [
-        { id: 'me', userId: 'me', name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' },
-      ],
+      // F-08: 초대 단계에서 참여를 확정한 팀원 명단을 그대로 팀 멤버로 넘긴다 — 항상 "나" 1명으로
+      // 고정되던 문제를 고침. 초대 단계를 건너뛴 경로(온보드 mock 등)를 대비해 폴백을 남겨둔다.
+      members:
+        inviteMembers.length > 0
+          ? inviteMembers.map((m) => ({
+              id: m.id,
+              userId: m.id,
+              name: m.name,
+              preferredTasks: [],
+              completedTaskCount: 0,
+              status: 'in-progress',
+            }))
+          : [{ id: 'me', userId: 'me', name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }],
     }
     const roadmap = buildRoadmapFromTemplate(templateType, commonInfo.dueDate)
     createTeam(team, roadmap)
@@ -92,7 +109,7 @@ export function TeamDashboardPage() {
       <StepIndicator current={mode.phase === 'setup' ? mode.step : 'progress'} />
       <div className="mt-8 grid grid-cols-[1fr_360px] gap-6">
         <div>
-          {mode.phase === 'setup' && mode.step === 'invite' && <InviteStep onComplete={advance} />}
+          {mode.phase === 'setup' && mode.step === 'invite' && <InviteStep onComplete={handleInviteComplete} />}
           {mode.phase === 'setup' && mode.step === 'common-info' && (
             <CommonInfoStep onComplete={handleCommonInfoComplete} />
           )}

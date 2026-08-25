@@ -8,7 +8,7 @@ import { USE_MOCKS } from '@/lib/env'
 import { inviteCode as mockInviteCode, inviteMembers as mockInviteMembers, type InviteMember } from '@/mocks/invite'
 
 interface InviteStepProps {
-  onComplete: () => void
+  onComplete: (members: InviteMember[]) => void
 }
 
 const emptyMembers: InviteMember[] = [{ id: 'me', name: '나', department: '', isMe: false, joined: true }]
@@ -109,7 +109,7 @@ export function InviteStep({ onComplete }: InviteStepProps) {
 
       <div className="mt-6 rounded-lg border border-surface-border bg-surface-muted p-6 text-center">
         {allJoined ? (
-          <Button onClick={onComplete}>다음 단계로</Button>
+          <Button onClick={() => onComplete(members)}>다음 단계로</Button>
         ) : (
           <>
             <p className="font-semibold text-ink-600">전원 참여 후 다음 단계</p>

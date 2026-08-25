@@ -8,6 +8,7 @@ import { Field, Input } from '@/components/ui/Input'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
 import { getSessionByCode } from '@/lib/inviteSessionStore'
+import { isVisibleBackendProject } from '@/lib/projectVisibility'
 import { ownerNamesFromTasks } from '@/lib/taskMapping'
 import { priorityItems as mockPriorityItems } from '@/mocks/home'
 import { teamProjectSummaries as mockTeamProjectSummaries } from '@/mocks/project'
@@ -31,8 +32,9 @@ export function HomePage() {
     let cancelled = false
     getProjects()
       .then(async (data) => {
+        const visibleProjects = data.projects.filter((p) => isVisibleBackendProject(p.id))
         const summaries = await Promise.all(
-          data.projects.map(async (project) => {
+          visibleProjects.map(async (project) => {
             const [tasksData, risksData] = await Promise.all([getTasks(project.id), getTaskRisks(project.id)])
             const totalCount = tasksData.tasks.length
             const completedCount = tasksData.tasks.filter((t) => t.done).length

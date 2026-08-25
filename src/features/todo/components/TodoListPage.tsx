@@ -8,6 +8,7 @@ import { Field, Input } from '@/components/ui/Input'
 import { StatCard } from '@/components/ui/StatCard'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
+import { isVisibleBackendProject } from '@/lib/projectVisibility'
 import { clearSubmission, getAllSubmissions, saveSubmission } from '@/lib/submissionStore'
 import { todoGroups as mockTodoGroups } from '@/mocks/todo'
 import { currentUser } from '@/mocks/user'
@@ -48,8 +49,9 @@ export function TodoListPage() {
     let cancelled = false
     getProjects()
       .then(async (data) => {
+        const visibleProjects = data.projects.filter((p) => isVisibleBackendProject(p.id))
         const backendGroups = await Promise.all(
-          data.projects.map(async (project) => {
+          visibleProjects.map(async (project) => {
             const tasksData = await getTasks(project.id)
             const myItems: TodoItem[] = tasksData.tasks
               .filter((t) => t.owner === currentUser.name)
@@ -77,7 +79,7 @@ export function TodoListPage() {
         )
         if (cancelled) return
         const filtered = withStoredSubmissions(backendGroups.filter((g): g is TodoProjectGroup => g !== null))
-        setBackendProjectIds(new Set(data.projects.map((p) => String(p.id))))
+        setBackendProjectIds(new Set(visibleProjects.map((p) => String(p.id))))
         setGroups((prev) => [...filtered, ...prev.filter((g) => !filtered.some((f) => f.projectId === g.projectId))])
       })
       .catch(() => {

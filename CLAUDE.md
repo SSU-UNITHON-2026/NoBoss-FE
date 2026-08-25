@@ -52,7 +52,12 @@ AI 마이크로서비스: `https://web-production-dc097.up.railway.app` — 프�
   `success`를 다시 체크하지 않는다.
 - 백엔드에 인증·팀원초대·멤버·채팅로그·독촉 API가 없다 — 이 기능들은 계속 localStorage mock
   (`nudgeStore.ts` 등)으로 유지하고, "나"는 `mocks/user.ts`의 `currentUser.name`으로 전역 고정한다.
-- 고정 온보드 mock 데모(`p-onboard`)는 삭제됐다 — 되살리지 않는다.
+- 홈/투두 화면의 mock 팀 3개(`mocks/project.ts`의 `teamProjectSummaries`, `mocks/todo.ts`의
+  `todoGroups`)는 각각 제품 강점을 다른 상황으로 보여주도록 의도적으로 설계했다 — 정상 진행(지연
+  없음), 지연 위험 감지(F-16/F-17), 마감 임박·기여도 집계(F-14/F-20/F-21). 새로 mock을 추가/교체할
+  때도 이 "상황별로 강점을 보여준다"는 의도를 유지할 것. 실서버 프로젝트는 `lib/projectVisibility.ts`의
+  `VISIBLE_BACKEND_PROJECT_IDS`에 없으면 홈/투두에서 안 보인다 — 테스트로 생긴 빈 프로젝트를
+  가리기 위한 필터이니, 실사용을 열려면 이 배열을 갱신하거나 필터 자체를 제거할 것.
 
 ## 폴더 구조 (기능 단위)
 
@@ -148,9 +153,10 @@ src/
 **F-23/F-28 채팅 규칙**: 참여자 메시지와 AI 메시지는 하나의 채팅창(`TeamChatPanel`)에 공존한다.
 분리된 채팅창을 만들지 않는다. AI 메시지는 배지로만 구분한다(`ChatMessage.authorId === 'ai'`).
 공동설정 단계에서 채팅에 자연어로 입력한 정보(팀명, 마감일 등)는 AI가 파싱해 좌측 폼에 자동
-반영해야 한다(F-28) — 폼 직접 입력과 병행 가능해야 하며, 어느 한쪽만 지원하도록 구현하지 않는다.
-`mocks/project.ts`의 `onboardChatMessages`에 `proposedAction` 필드로 AI가 제안하는 액션(재분배 등)의
-모양이 정의되어 있으니 참고할 것 — AI 제안은 즉시 반영되지 않고 팀원 전원 확인 후 적용된다.
+반영해야 한다(F-28) — 폼 직접 입력과 병행 가능해야 하며, 어느 한쪽만 지원하도록 구현하지 않는다
+(`src/api/aiOutline.ts`, railway AI 서비스의 `/outline/extract`·`/team-name/suggest` 참고). AI 제안은
+즉시 반영되지 않고 팀원 전원 확인 후 적용된다 — `ChatMessage.requiresApproval`/`applied` 필드로
+승인 전/후 상태를 구분한다.
 
 ## 우선순위 스코프 (기능명세서 v0.5 기준)
 

@@ -75,13 +75,14 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
   (owner는 초대 단계에서 참여 확정한 팀원 이름으로 라운드로빈 배정 — F-09 콜드스타트 균등 배정).
   백엔드에 인증이 없어 "나"는 여전히 `mocks/user.ts`의 `currentUser.name`(윤세아)으로 전역 고정한다.
   온보드 mock 데모(`p-onboard`)는 여전히 별개 경로이니 섞어 쓰지 않는다.
-- **모든 API는 반드시 `https://noboss-api.kusitms.xyz`(이 섹션 맨 위) 하나로만 받는다.** AI 관련
-  기능(공동설정 채팅 자연어 파싱 등, F-28)도 예외 없이 이 백엔드를 통해서만 연동한다.
-  `https://web-production-dc097.up.railway.app`(별도 FastAPI AI 서비스)는 **프론트에서 절대 직접
-  호출하지 않는다** — 이 AI 서비스는 noboss-api 백엔드가 내부적으로 호출해서 가공한 뒤
-  `noboss-api.kusitms.xyz`의 엔드포인트(예: `POST /api/v1/messages`)로 노출해줄 예정이다. 프론트
-  코드(`src/api/*.ts`)나 `src/lib/env.ts`에 railway 도메인을 가리키는 base URL·fetch 호출을 다시
-  추가하지 않는다 — 한 번 추가했다가 명시적으로 제거된 이력이 있다(2026-08-26).
+- (2026-08-26 기준, 지침 폐기됨) 한때 "모든 API는 noboss-api 하나로만 받고
+  `https://web-production-dc097.up.railway.app`(별도 FastAPI AI 서비스)는 프론트에서 절대 직접
+  호출하지 않는다"는 금지 규칙이 있었으나 사용자 지시로 삭제됨. 이 railway 서비스를 프론트에서 직접
+  호출해도 된다. 스펙: `POST /outline/extract`(채팅 로그 → 과목명/주제/설명/마감기한 추출, `confirmed`
+  필드는 덮어쓰지 않음), `POST /team-name/suggest`(topic·description 확정 후 팀명 후보 3~5개),
+  `POST /proposal/generate`(noboss-api의 `POST /projects/{id}/messages`와 동일한
+  actionType/requiresApproval/proposal 스키마 — 이건 이미 noboss-api가 내부적으로 호출해서 프록시하고
+  있는 것으로 보임, 중복 호출하지 않도록 주의). CORS 등 연동 전 실제 동작을 먼저 확인할 것.
 
 ## 폴더 구조 (기능 단위)
 

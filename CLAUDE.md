@@ -46,17 +46,23 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
   적용되지 않음), 5173에서만 테스트한다.
 - 응답 포맷은 이미 `{ success, status, data, timestamp }`로 문서화된 그대로이므로 `src/lib/http.ts`의
   기존 언래핑 로직을 그대로 쓰면 된다.
-- (2026-08-26 기준) 노출된 엔드포인트는 5개뿐 — `GET /api/v1/project`, `GET /api/v1/tasks`,
-  `GET /api/v1/tasks/risks`, `PATCH /api/v1/tasks/{taskId}/done`, `GET /api/health`. 팀 생성/초대/멤버/
-  채팅/독촉/퀵애드 관련 엔드포인트는 아직 없다 — 해당 기능은 백엔드가 추가되기 전까지 계속
-  `teamStore.ts`/`nudgeStore.ts`(localStorage) mock으로 유지한다.
-- 백엔드는 현재 프로젝트 1개(id=1, "B_LANK" 팀)만 하드코딩되어 있고, 로드맵 단계(stage) 자체의
-  메타데이터(라벨/기한 등 5단계 뼈대)를 내려주는 엔드포인트가 없다 — `Task`마다 `stage`(숫자)+
+- (2026-08-26 기준) 노출된 엔드포인트는 9개 — `GET/POST /api/v1/projects`,
+  `GET/PATCH /api/v1/projects/{projectId}`, `GET /api/v1/tasks`, `GET /api/v1/tasks/risks`,
+  `PATCH /api/v1/tasks/{taskId}/done`, `POST /api/v1/messages`, `POST /api/v1/messages/{messageId}/apply`,
+  `GET /api/health`. **`GET /api/v1/project`(단수형) 엔드포인트는 제거됐다 — 이제 500을 반환한다.**
+  프로젝트 상세 조회는 반드시 `GET /api/v1/projects/{projectId}`를 써야 한다(`src/api/project.ts`
+  참고). 팀원 초대/멤버/채팅 로그/독촉/퀵애드(업무 생성) 관련 엔드포인트는 아직 없다 — 해당 기능은
+  백엔드가 추가되기 전까지 계속 `teamStore.ts`/`nudgeStore.ts`(localStorage) mock으로 유지한다.
+- 백엔드가 `POST /api/v1/projects`로 멀티 프로젝트 생성을 지원하기 시작했지만, `tasks`/`tasks/risks`/
+  `messages` 엔드포인트는 아직 프로젝트 단위로 분리되지 않았다(요청에 projectId를 받지 않음) — 즉
+  프로젝트를 여러 개 만들어도 업무·채팅은 여전히 하나의 전역 목록을 공유한다. 로드맵 단계(stage)
+  자체의 메타데이터(라벨/기한 등 5단계 뼈대)를 내려주는 엔드포인트도 없다 — `Task`마다 `stage`(숫자)+
   `stageName`(문자열)만 붙어서 온다. 5단계 로드맵 뼈대(`roadmapTemplates.ts`)는 계속 프론트에서
   구성해야 한다.
-- 백엔드가 프로젝트를 1개만 지원하므로, 실서버 연동 화면은 `/team/live` 경로로 접근한다
-  (`ProgressDashboard.tsx`의 `isLiveBackend` 분기). 로컬 mock 팀(`teamStore.ts`)이나 온보드 mock
-  데모(`p-onboard`)와는 별개 경로이니 섞어 쓰지 않는다.
+- 실서버 연동 화면은 `/team/live` 경로로 접근한다(`ProgressDashboard.tsx`의 `isLiveBackend` 분기,
+  `LIVE_DEMO_PROJECT_ID = 1`로 고정). tasks/messages가 아직 프로젝트별로 분리되지 않는 한 이 방식을
+  유지한다. 로컬 mock 팀(`teamStore.ts`)이나 온보드 mock 데모(`p-onboard`)와는 별개 경로이니 섞어
+  쓰지 않는다.
 - **모든 API는 반드시 `https://noboss-api.kusitms.xyz`(이 섹션 맨 위) 하나로만 받는다.** AI 관련
   기능(공동설정 채팅 자연어 파싱 등, F-28)도 예외 없이 이 백엔드를 통해서만 연동한다.
   `https://web-production-dc097.up.railway.app`(별도 FastAPI AI 서비스)는 **프론트에서 절대 직접

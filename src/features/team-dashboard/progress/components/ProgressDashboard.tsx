@@ -38,6 +38,9 @@ interface ProgressDashboardProps {
 // 백엔드에 인증/멤버 API가 없어 "나"를 특정할 방법이 없다 — 기존 온보드 mock 데모와 동일하게
 // 윤세아를 로그인 사용자로 고정한다.
 const LIVE_DEMO_USER = '윤세아'
+// 백엔드가 멀티 프로젝트(GET/POST /api/v1/projects)를 지원하기 시작했지만, tasks/risks/messages
+// 엔드포인트는 아직 프로젝트 단위로 분리되지 않았다 — 지금은 유일하게 존재하는 데모 프로젝트(id=1)를 그대로 쓴다.
+const LIVE_DEMO_PROJECT_ID = 1
 
 export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const storedRecord = teamId ? getTeam(teamId) : undefined
@@ -57,7 +60,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   useEffect(() => {
     if (!isLiveBackend) return
     let cancelled = false
-    getProject()
+    getProject(LIVE_DEMO_PROJECT_ID)
       .then((data) => {
         if (!cancelled) setLiveProject(data)
       })

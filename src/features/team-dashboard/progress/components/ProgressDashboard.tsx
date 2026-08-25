@@ -10,15 +10,7 @@ import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamCha
 import { AI_MENTION, isAiMention } from '@/lib/chat'
 import { computeContributions } from '@/lib/contribution'
 import { formatDday } from '@/lib/date'
-import { USE_MOCKS } from '@/lib/env'
 import { mapRisksToDelayAlerts, mapTasksToRoadmap, ownerNamesFromTasks } from '@/lib/taskMapping'
-import {
-  members as mockMembers,
-  onboardChatMessages,
-  onboardDelayAlerts,
-  onboardRoadmap,
-  onboardTeam,
-} from '@/mocks/project'
 import { currentUser } from '@/mocks/user'
 import type { ChatMessage } from '@/types/chat'
 import type { DelayAlert } from '@/types/nudge'
@@ -37,11 +29,9 @@ interface ProgressDashboardProps {
 }
 
 export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
-  const isMockOnboard = USE_MOCKS && teamId === 'p-onboard'
   // teamId는 실제 백엔드 프로젝트 id(POST /api/v1/projects로 발급된 숫자)를 그대로 라우트 세그먼트로
-  // 쓴다 — 더 이상 단일 데모 프로젝트(구 /team/live)로 고정하지 않고, 어떤 프로젝트든 이 화면에서
-  // 실서버 데이터를 그대로 보여준다.
-  const projectId = !isMockOnboard && teamId ? Number(teamId) : NaN
+  // 쓴다 — 어떤 프로젝트든 이 화면에서 실서버 데이터를 그대로 보여준다.
+  const projectId = teamId ? Number(teamId) : NaN
   const isBackendProject = Number.isFinite(projectId)
   const [liveProject, setLiveProject] = useState<ProjectResponse | null>(null)
   const [liveTasks, setLiveTasks] = useState<TaskResponse[] | null>(null)
@@ -57,7 +47,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   } | null>(null)
   const [planSaving, setPlanSaving] = useState(false)
   const [planError, setPlanError] = useState<string | null>(null)
-  const [steps, setSteps] = useState<RoadmapStep[]>(() => (isMockOnboard ? onboardRoadmap : []))
+  const [steps, setSteps] = useState<RoadmapStep[]>([])
 
   useEffect(() => {
     if (!isBackendProject) return
@@ -91,16 +81,13 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   }, [isBackendProject, projectId])
 
   // 백엔드에 인증/멤버 API가 없어 "나"는 전역적으로 mocks/user.ts의 currentUser로 고정한다
-  const currentUserId = isMockOnboard ? 'u-yunseah' : isBackendProject ? currentUser.name : 'me'
-  const memberNameById: Record<string, string> = isMockOnboard
-    ? Object.fromEntries(mockMembers.map((m) => [m.id, m.name]))
-    : isBackendProject && liveTasks
-      ? Object.fromEntries(ownerNamesFromTasks(liveTasks).map((name) => [name, name]))
-      : { [currentUserId]: '나' }
+  const currentUserId = isBackendProject ? currentUser.name : 'me'
+  const memberNameById: Record<string, string> = isBackendProject && liveTasks
+    ? Object.fromEntries(ownerNamesFromTasks(liveTasks).map((name) => [name, name]))
+    : { [currentUserId]: '나' }
 
-  const members: Member[] = isMockOnboard
-    ? mockMembers
-    : isBackendProject && liveTasks
+  const members: Member[] =
+    isBackendProject && liveTasks
       ? ownerNamesFromTasks(liveTasks).map((name) => ({
           id: name,
           userId: name,
@@ -111,27 +98,19 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
         }))
       : [{ id: currentUserId, userId: currentUserId, name: '나', preferredTasks: [], completedTaskCount: 0, status: 'in-progress' }]
 
-  const delayAlerts: DelayAlert[] = isMockOnboard ? onboardDelayAlerts : isBackendProject ? liveRisks : []
-  const initialMessages: ChatMessage[] = isMockOnboard ? onboardChatMessages : []
+  const delayAlerts: DelayAlert[] = isBackendProject ? liveRisks : []
   const teamInfo: { courseName: string; memberCount: number | null; title: string; dueDate: string | null } =
-    isMockOnboard
+    isBackendProject && liveProject
       ? {
-          courseName: onboardTeam.courseName,
-          memberCount: onboardTeam.memberCount,
-          title: `${onboardTeam.name} — ${onboardTeam.topic}`,
-          dueDate: onboardTeam.dueDate,
+          // 백엔드가 아직 인원 수를 내려주지 않는다 — 임의로 채우지 않고 null로 남긴다
+          courseName: liveProject.subjectName,
+          memberCount: null,
+          title: `${liveProject.teamName} — ${liveProject.projectTopic}`,
+          dueDate: liveProject.deadline,
         }
-      : isBackendProject && liveProject
-        ? {
-            // 백엔드가 아직 인원 수를 내려주지 않는다 — 임의로 채우지 않고 null로 남긴다
-            courseName: liveProject.subjectName,
-            memberCount: null,
-            title: `${liveProject.teamName} — ${liveProject.projectTopic}`,
-            dueDate: liveProject.deadline,
-          }
-        : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null }
+      : { courseName: '과목 · 인원 정보 없음', memberCount: 1, title: '프로젝트', dueDate: null }
 
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
 
   const allSubtasks = useMemo(() => steps.flatMap((s) => s.subtasks), [steps])
   const subtasksById = useMemo(() => Object.fromEntries(allSubtasks.map((t) => [t.id, t])), [allSubtasks])

@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
-import { USE_MOCKS } from '@/lib/env'
-import { onboardTeam } from '@/mocks/project'
 
 export interface CommonInfoValue {
   name: string
@@ -20,9 +18,9 @@ interface CommonInfoStepProps {
 }
 
 const placeholder = {
-  name: USE_MOCKS ? `ex) ${onboardTeam.name}` : '팀 이름을 입력하세요',
-  courseName: USE_MOCKS ? `ex) ${onboardTeam.courseName}` : '과목명을 입력하세요',
-  topic: USE_MOCKS ? `ex) ${onboardTeam.topic}` : '프로젝트 주제를 입력하세요',
+  name: '팀 이름을 입력하세요',
+  courseName: '과목명을 입력하세요',
+  topic: '프로젝트 주제를 입력하세요',
 }
 
 export function CommonInfoStep({ onComplete, aiDraft }: CommonInfoStepProps) {
@@ -33,7 +31,7 @@ export function CommonInfoStep({ onComplete, aiDraft }: CommonInfoStepProps) {
   const [topicOverride, setTopicOverride] = useState<string | null>(null)
   const [descriptionOverride, setDescriptionOverride] = useState<string | null>(null)
   const [dueDateOverride, setDueDateOverride] = useState<string | null>(null)
-  const [memberCount, setMemberCount] = useState(USE_MOCKS ? onboardTeam.memberCount : 2)
+  const [memberCount, setMemberCount] = useState(2)
 
   const name = nameOverride ?? aiDraft?.name ?? ''
   const courseName = courseNameOverride ?? aiDraft?.courseName ?? ''

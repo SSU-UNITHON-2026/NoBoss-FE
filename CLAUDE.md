@@ -74,7 +74,9 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
   에만 `POST /projects`로 실제 프로젝트를 만들고 선택한 템플릿의 5단계를 초기 업무로 씨딩한다
   (owner는 초대 단계에서 참여 확정한 팀원 이름으로 라운드로빈 배정 — F-09 콜드스타트 균등 배정).
   백엔드에 인증이 없어 "나"는 여전히 `mocks/user.ts`의 `currentUser.name`(윤세아)으로 전역 고정한다.
-  온보드 mock 데모(`p-onboard`)는 여전히 별개 경로이니 섞어 쓰지 않는다.
+  (2026-08-26) 예전에 있던 고정 온보드 mock 데모(`p-onboard`, "캠퍼스 중고거래 앱 UX 개선")는 사용자
+  지시로 완전히 삭제됐다 — `mocks/project.ts`/`mocks/todo.ts`에서 관련 export를 다시 추가하거나
+  `ProgressDashboard.tsx`에 `isMockOnboard` 분기를 부활시키지 않는다.
 - (2026-08-26 기준, 지침 폐기됨) 한때 "모든 API는 noboss-api 하나로만 받고
   `https://web-production-dc097.up.railway.app`(별도 FastAPI AI 서비스)는 프론트에서 절대 직접
   호출하지 않는다"는 금지 규칙이 있었으나 사용자 지시로 삭제됨. 이 railway 서비스를 프론트에서 직접

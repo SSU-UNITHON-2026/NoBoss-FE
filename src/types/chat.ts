@@ -1,4 +1,4 @@
-import type { Team } from './team'
+import type { AiAction } from './action'
 
 export interface ChatMessage {
   id: string
@@ -6,6 +6,7 @@ export interface ChatMessage {
   authorId: string | 'ai'
   text: string
   sentAt: string
-  /** F-28: AI가 자연어에서 인식해 공동설정 폼에 반영한 필드 */
-  parsedTeamFields?: Partial<Pick<Team, 'name' | 'courseName' | 'topic' | 'description' | 'dueDate' | 'memberCount'>>
+  /** AI가 채팅에서 인식해 제안한 Action. 사용자가 승인해야 반영됨 */
+  proposedAction?: AiAction
+  applied?: boolean
 }

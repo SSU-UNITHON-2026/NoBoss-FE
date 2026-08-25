@@ -30,61 +30,31 @@ unwork 해커톤 프로젝트. Vite + React 19 + TypeScript + Tailwind v4 프론
 
 ## 백엔드 API (실제 서버 존재 — 연동 전 반드시 확인)
 
-실제 백엔드가 떠 있고 Swagger로 스펙을 확인할 수 있다:
-- UI: https://noboss-api.kusitms.xyz/swagger-ui/index.html#/
-- 스펙 JSON(그대로 curl/fetch 가능): https://noboss-api.kusitms.xyz/v3/api-docs
+메인 백엔드: `https://noboss-api.kusitms.xyz` (스펙: `/swagger-ui/index.html#/` 또는 `/v3/api-docs`).
+모든 리소스가 `/api/v1/projects/{projectId}/...` 형태로 프로젝트 단위 스코프다 — `teamId`/`projectId`는
+`POST /projects`로 발급된 실제 숫자 id이며, 고정된 단일 데모 프로젝트 개념은 없다. 현재 노출된
+리소스: `projects`(CRUD 일부: 목록/생성/조회/수정, 삭제 없음), `tasks`(생성/조회/수정/삭제/완료토글),
+`tasks/risks`(조회), `messages`+`messages/{id}/apply`(AI 채팅 제안·승인). `src/api/*.ts`의 모든 함수는
+`projectId`를 첫 인자로 받는다 — 새 함수도 이 규칙을 따를 것.
 
-- `src/api/*.ts`에 엔드포인트를 추가·수정하기 전에는 항상 위 스펙에서 실제 요청/응답 스키마를 먼저
-  확인한다. 프론트에서 기대하는 타입(`types/*.ts`)과 실제 백엔드 응답 스키마가 다른 경우가 많으므로
-  추측으로 연동하지 않는다 — 특히 필드명(`owner`가 멤버 id가 아니라 이름 문자열, 공동 담당은
-  `"공동"` 문자열로 내려옴)과 중첩 구조(로드맵 `RoadmapStep[]`처럼 프론트가 기대하는 중첩 형태를
-  백엔드가 그대로 주지 않고 평평한 리스트 + `stage`/`stageName` 필드로 내려주는 식)에 유의.
-- 인증은 없지만 **CORS가 `http://localhost:5173` origin으로만 허용**되어 있다(다른 포트는
-  `403 Invalid CORS request`). Vite 기본 포트(5173)에서 `VITE_API_BASE_URL=https://noboss-api.kusitms.xyz/api/v1`로
-  설정하면 바로 호출 가능하다(`src/lib/http.ts` 참고, 기본값은 `/api/v1`). 다른 포트에서 확인해야
-  하면 `vite.config.ts`의 `server.proxy`로 우회하거나(브라우저 기준 same-origin이 되어 CORS 자체가
-  적용되지 않음), 5173에서만 테스트한다.
-- 응답 포맷은 이미 `{ success, status, data, timestamp }`로 문서화된 그대로이므로 `src/lib/http.ts`의
-  기존 언래핑 로직을 그대로 쓰면 된다.
-- (2026-08-26 기준) **모든 프로젝트 하위 리소스가 `/api/v1/projects/{projectId}/...`로 완전히
-  스코프됐다** — `tasks`/`tasks/risks`/`messages`도 이제 projectId를 받는다. 노출된 엔드포인트 12개:
-  `GET/POST /api/v1/projects`, `GET/PATCH /api/v1/projects/{projectId}`,
-  `GET/POST /api/v1/projects/{projectId}/tasks`, `PATCH/DELETE /api/v1/projects/{projectId}/tasks/{taskId}`,
-  `PATCH /api/v1/projects/{projectId}/tasks/{taskId}/done`, `GET /api/v1/projects/{projectId}/tasks/risks`,
-  `POST /api/v1/projects/{projectId}/messages`, `POST /api/v1/projects/{projectId}/messages/{messageId}/apply`,
-  `GET /api/health`. **비-중첩 구버전(`GET /api/v1/project`, `/tasks`, `/tasks/risks`, `/messages` 등)은
-  전부 제거됐다 — 이제 500을 반환한다.** `src/api/project.ts`/`tasks.ts`/`messages.ts`의 모든 함수가
-  `projectId`를 첫 인자로 받도록 이미 맞춰뒀다 — 새 API 함수를 추가할 때도 이 규칙을 따를 것.
-  업무 생성(`POST tasks`)·수정(`PATCH tasks/{id}`)·삭제(`DELETE tasks/{id}`)가 새로 생겨서 F-18(바로
-  할 일 추가)이 진행관리 모드에서 실제로 백엔드에 저장된다(`ProgressDashboard.tsx`의 `addQuickTask`
-  참고). 팀원 초대/멤버/채팅 로그/독촉 관련 엔드포인트는 여전히 없다 — 해당 기능은 백엔드가 추가되기
-  전까지 계속 `nudgeStore.ts`(localStorage) 등 mock으로 유지한다. 로드맵 단계(stage) 자체의
-  메타데이터(라벨/기한 등 5단계 뼈대)를 내려주는 엔드포인트도 아직 없다 — `Task`마다 `stage`(숫자)+
-  `stageName`(문자열)만 붙어서 온다. 5단계 로드맵 템플릿(`roadmapTemplates.ts`의 `TASK_TEMPLATES`)은
-  계속 프론트에서 구성해야 한다.
-- (2026-08-26 기준) **백엔드 연동은 더 이상 단일 데모 프로젝트(`/team/live`, id=1) 전용이 아니다.**
-  `POST /api/v1/projects`로 실제 프로젝트를 생성하고, `/team/:teamId`의 `teamId`를 그 프로젝트의 숫자
-  id로 그대로 라우팅한다 — 어떤 프로젝트든 같은 화면에서 실서버 데이터를 쓴다
-  (`ProgressDashboard.tsx`의 `isBackendProject`/`projectId` 분기, 더 이상 `LIVE_DEMO_PROJECT_ID` 같은
-  고정값 없음). 홈 화면(`HomePage.tsx`)은 `GET /projects`로 전체 프로젝트 목록을 가져와 보여주고,
-  To Do List(`TodoListPage.tsx`)도 전체 프로젝트를 순회하며 내 담당 업무를 모은다. `teamStore.ts`
-  (localStorage 로드맵 mock)는 제거됐다 — 로컬에만 존재하던 팀 생성 흐름은 더 이상 없다.
-  다만 **팀원 초대/멤버 API는 여전히 없다**: 초기 설정의 팀원 초대(F-08)·역할 분배(F-09~F-11) 단계는
-  그대로 로컬 상태로만 진행하고, "로드맵 확정" 시점(`TeamDashboardPage.tsx`의 `handleRoadmapComplete`)
-  에만 `POST /projects`로 실제 프로젝트를 만들고 선택한 템플릿의 5단계를 초기 업무로 씨딩한다
-  (owner는 초대 단계에서 참여 확정한 팀원 이름으로 라운드로빈 배정 — F-09 콜드스타트 균등 배정).
-  백엔드에 인증이 없어 "나"는 여전히 `mocks/user.ts`의 `currentUser.name`(윤세아)으로 전역 고정한다.
-  (2026-08-26) 예전에 있던 고정 온보드 mock 데모(`p-onboard`, "캠퍼스 중고거래 앱 UX 개선")는 사용자
-  지시로 완전히 삭제됐다 — `mocks/project.ts`/`mocks/todo.ts`에서 관련 export를 다시 추가하거나
-  `ProgressDashboard.tsx`에 `isMockOnboard` 분기를 부활시키지 않는다.
-- (2026-08-26 기준, 지침 폐기됨) 한때 "모든 API는 noboss-api 하나로만 받고
-  `https://web-production-dc097.up.railway.app`(별도 FastAPI AI 서비스)는 프론트에서 절대 직접
-  호출하지 않는다"는 금지 규칙이 있었으나 사용자 지시로 삭제됨. 이 railway 서비스를 프론트에서 직접
-  호출해도 된다. 스펙: `POST /outline/extract`(채팅 로그 → 과목명/주제/설명/마감기한 추출, `confirmed`
-  필드는 덮어쓰지 않음), `POST /team-name/suggest`(topic·description 확정 후 팀명 후보 3~5개),
-  `POST /proposal/generate`(noboss-api의 `POST /projects/{id}/messages`와 동일한
-  actionType/requiresApproval/proposal 스키마 — 이건 이미 noboss-api가 내부적으로 호출해서 프록시하고
-  있는 것으로 보임, 중복 호출하지 않도록 주의). CORS 등 연동 전 실제 동작을 먼저 확인할 것.
+AI 마이크로서비스: `https://web-production-dc097.up.railway.app` — 프론트에서 직접 호출 가능.
+`POST /outline/extract`(채팅 로그 → 과목명/주제/설명/마감기한 추출, `confirmed`로 넘긴 필드는 안
+덮어씀), `POST /team-name/suggest`(팀명 후보), `POST /proposal/generate`(채팅 발화 → 업무/프로젝트
+변경 제안 — noboss-api의 `POST /messages`가 내부적으로 이걸 호출하는 것으로 보이니, 같은 화면에서
+`/messages`를 이미 쓰고 있다면 `/proposal/generate`를 중복 호출하지 않는다).
+
+**항상 지킬 것**
+- 엔드포인트를 추가·수정하기 전에는 반드시 스펙에서 실제 요청/응답 스키마를 확인한다 — 프론트가
+  기대하는 타입과 실제 응답이 다른 경우가 흔하다(`owner`는 멤버 id가 아니라 이름 문자열, 공동 담당은
+  `"공동"`; 로드맵은 중첩 `RoadmapStep[]`이 아니라 `stage`/`stageName`이 붙은 평평한 Task 리스트로
+  내려옴 — 5단계 뼈대·라벨은 백엔드에 없으므로 `roadmapTemplates.ts`에서 프론트가 직접 구성).
+- CORS가 `http://localhost:5173` origin에만 허용된다. `VITE_API_BASE_URL=https://noboss-api.kusitms.xyz/api/v1`로
+  설정하고 5173에서 테스트한다(다른 포트가 꼭 필요하면 `vite.config.ts`의 `server.proxy`로 우회).
+- 응답은 `{ success, status, data, timestamp }` 포맷 — `src/lib/http.ts`가 이미 언래핑하므로 호출부에서
+  `success`를 다시 체크하지 않는다.
+- 백엔드에 인증·팀원초대·멤버·채팅로그·독촉 API가 없다 — 이 기능들은 계속 localStorage mock
+  (`nudgeStore.ts` 등)으로 유지하고, "나"는 `mocks/user.ts`의 `currentUser.name`으로 전역 고정한다.
+- 고정 온보드 mock 데모(`p-onboard`)는 삭제됐다 — 되살리지 않는다.
 
 ## 폴더 구조 (기능 단위)
 

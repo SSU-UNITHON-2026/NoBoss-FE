@@ -6,6 +6,7 @@ export interface DelayAlert {
 
 export interface Nudge {
   id: string
+  teamId: string
   fromMemberId: string
   toMemberId: string
   subtaskId?: string

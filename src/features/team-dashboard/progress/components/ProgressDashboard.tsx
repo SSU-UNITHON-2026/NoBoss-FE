@@ -160,6 +160,8 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
             alerts={activeDelayAlerts}
             subtasksById={subtasksById}
             memberNameById={memberNameById}
+            teamId={teamId ?? 'unknown'}
+            currentUserId={currentUserId}
             onReviewReassign={requestReassign}
           />
         </div>
@@ -170,10 +172,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
           messages={messages}
           currentUserId={currentUserId}
           memberNameById={memberNameById}
-          quickActions={[
-            { label: 'AI 리마인드 보내기', onClick: requestReassign },
-            { label: 'AI 재분배 제안 요청', onClick: requestReassign },
-          ]}
+          quickActions={[{ label: 'AI 재분배 제안 요청', onClick: requestReassign }]}
           onSend={handleSend}
         />
       </div>

@@ -127,7 +127,6 @@ export function HomePage() {
 
         <Card>
           <p className="font-semibold text-ink-900">우선 확인 항목</p>
-          <p className="mt-1 text-sm text-ink-600">일정 조정 신호입니다. 개인 평가와 무관합니다.</p>
           {priorityItems.length === 0 ? (
             <p className="mt-4 text-sm text-ink-400">확인할 항목이 없습니다.</p>
           ) : (

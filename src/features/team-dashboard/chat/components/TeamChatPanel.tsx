@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { AI_MENTION, isAiMention, splitAiMention, stripAiMention } from '@/lib/chat'
 import { cn } from '@/lib/cn'
@@ -47,6 +47,12 @@ export function TeamChatPanel({
   className,
 }: TeamChatPanelProps) {
   const [draft, setDraft] = useState('')
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  // 새 메시지(특히 AI 응답처럼 비동기로 도착하는 메시지)가 오면 항상 최신 메시지가 보이도록 스크롤한다
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [messages])
   const hasAiMention = isAiMention(draft)
 
   function handleSend() {
@@ -114,6 +120,7 @@ export function TeamChatPanel({
             </li>
           )
         })}
+        <div ref={bottomRef} />
       </ul>
 
       {quickActions?.length ? (

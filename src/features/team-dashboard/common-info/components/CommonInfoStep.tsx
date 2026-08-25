@@ -15,6 +15,8 @@ export interface CommonInfoValue {
 
 interface CommonInfoStepProps {
   onComplete: (value: CommonInfoValue) => void
+  // F-28: 우측 채팅에서 AI가 뽑아낸 값 — 이미 입력된 필드는 덮어쓰지 않고 빈 필드만 채운다
+  aiDraft?: Partial<Pick<CommonInfoValue, 'name' | 'courseName' | 'topic' | 'description' | 'dueDate'>>
 }
 
 const placeholder = {
@@ -23,13 +25,21 @@ const placeholder = {
   topic: USE_MOCKS ? onboardTeam.topic : '프로젝트 주제를 입력하세요',
 }
 
-export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
-  const [name, setName] = useState('')
-  const [courseName, setCourseName] = useState('')
-  const [topic, setTopic] = useState('')
-  const [description, setDescription] = useState('')
-  const [dueDate, setDueDate] = useState('')
+export function CommonInfoStep({ onComplete, aiDraft }: CommonInfoStepProps) {
+  // 사용자가 직접 타이핑하기 전까지는 null — 그동안은 AI가 채팅에서 뽑아낸 값을 그대로 보여준다.
+  // 한 번이라도 타이핑하면 그 뒤로는 AI 값이 새로 와도 사용자 입력이 항상 우선한다.
+  const [nameOverride, setNameOverride] = useState<string | null>(null)
+  const [courseNameOverride, setCourseNameOverride] = useState<string | null>(null)
+  const [topicOverride, setTopicOverride] = useState<string | null>(null)
+  const [descriptionOverride, setDescriptionOverride] = useState<string | null>(null)
+  const [dueDateOverride, setDueDateOverride] = useState<string | null>(null)
   const [memberCount, setMemberCount] = useState(USE_MOCKS ? onboardTeam.memberCount : 2)
+
+  const name = nameOverride ?? aiDraft?.name ?? ''
+  const courseName = courseNameOverride ?? aiDraft?.courseName ?? ''
+  const topic = topicOverride ?? aiDraft?.topic ?? ''
+  const description = descriptionOverride ?? aiDraft?.description ?? ''
+  const dueDate = dueDateOverride ?? aiDraft?.dueDate ?? ''
 
   const canProceed = name.trim() && courseName.trim() && topic.trim() && dueDate
 
@@ -46,7 +56,7 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
           <Field label="팀명">
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setNameOverride(e.target.value)}
               placeholder={placeholder.name}
               className="py-3 text-base"
             />
@@ -54,7 +64,7 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
           <Field label="과목명">
             <Input
               value={courseName}
-              onChange={(e) => setCourseName(e.target.value)}
+              onChange={(e) => setCourseNameOverride(e.target.value)}
               placeholder={placeholder.courseName}
               className="py-3 text-base"
             />
@@ -63,7 +73,7 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
         <Field label="프로젝트 주제">
           <Input
             value={topic}
-            onChange={(e) => setTopic(e.target.value)}
+            onChange={(e) => setTopicOverride(e.target.value)}
             placeholder={placeholder.topic}
             className="py-3 text-base"
           />
@@ -71,7 +81,7 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
         <Field label="설명">
           <textarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => setDescriptionOverride(e.target.value)}
             rows={4}
             className="rounded-lg border border-surface-border bg-surface-muted px-3 py-3 text-base text-ink-900 outline-none placeholder:text-ink-400 focus:border-brand-500 focus:bg-white"
             placeholder="프로젝트를 한두 문장으로 설명해 주세요"
@@ -82,7 +92,7 @@ export function CommonInfoStep({ onComplete }: CommonInfoStepProps) {
             <Input
               type="date"
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              onChange={(e) => setDueDateOverride(e.target.value)}
               className="py-3 text-base"
             />
           </Field>

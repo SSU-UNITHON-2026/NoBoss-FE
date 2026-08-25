@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { extractOutline, suggestTeamName } from '@/api/aiOutline'
 import { createProject } from '@/api/project'
 import { createTask } from '@/api/tasks'
 import { AssignmentStep } from '@/features/team-dashboard/assignment/components/AssignmentStep'
@@ -32,6 +33,11 @@ export function TeamDashboardPage() {
   const joinedSession = joinCode ? getSessionByCode(joinCode) : undefined
   const [mode, setMode] = useState<TeamDashboardMode>({ phase: 'setup', step: 'invite' })
   const [commonInfo, setCommonInfo] = useState<CommonInfoValue | null>(null)
+  // F-28: 공동설정 채팅에서 AI가 뽑아낸 값 — CommonInfoStep의 빈 필드를 채우는 데 쓴다
+  const [commonInfoDraft, setCommonInfoDraft] = useState<
+    Partial<Pick<CommonInfoValue, 'name' | 'courseName' | 'topic' | 'description' | 'dueDate'>>
+  >({})
+  const [suggestedTeamName, setSuggestedTeamName] = useState(false)
   const [inviteMembers, setInviteMembers] = useState<InviteMember[]>([])
   const [activeInviteCode, setActiveInviteCode] = useState<string | undefined>(undefined)
   // F-23: 초기 설정 4단계 전체에서 채팅이 상시 노출돼야 하므로, 오케스트레이터가 채팅 상태를
@@ -65,25 +71,73 @@ export function TeamDashboardPage() {
     advance()
   }
 
+  function appendAiMessage(text: string) {
+    setMessages((prev) => [
+      ...prev,
+      { id: `local-${prev.length}`, teamId: 'setup', authorId: 'ai', text, sentAt: new Date().toISOString() },
+    ])
+  }
+
+  // F-28: 공동설정 단계에서는 @AI 멘션 없이도 모든 메시지를 채팅에서 팀명/과목명/주제/설명/
+  // 마감기한을 뽑아내는 AI 서비스(outline/extract)로 보내고, 좌측 폼의 빈 필드를 채운다.
+  // 이미 채워진 필드는 confirmed로 넘겨 절대 덮어쓰지 않는다.
+  async function handleCommonInfoChat(text: string, chatLog: string[]) {
+    try {
+      const confirmed: Record<string, string> = {}
+      if (commonInfoDraft.name) confirmed.team_name = commonInfoDraft.name
+      if (commonInfoDraft.courseName) confirmed.subject = commonInfoDraft.courseName
+      if (commonInfoDraft.topic) confirmed.topic = commonInfoDraft.topic
+      if (commonInfoDraft.description) confirmed.description = commonInfoDraft.description
+      if (commonInfoDraft.dueDate) confirmed.deadline = commonInfoDraft.dueDate
+
+      const res = await extractOutline(chatLog, confirmed)
+      const { outline } = res
+      setCommonInfoDraft((prev) => ({
+        name: outline.team_name ?? prev.name,
+        courseName: outline.subject ?? prev.courseName,
+        topic: outline.topic ?? prev.topic,
+        description: outline.description ?? prev.description,
+        dueDate: outline.deadline ?? prev.dueDate,
+      }))
+      if (res.confirmation_message) appendAiMessage(res.confirmation_message)
+
+      // 팀명은 아직 없는데 주제·설명이 다 채워졌으면, 팀당 한 번만 후보를 추천한다
+      if (!outline.team_name && !commonInfoDraft.name && outline.topic && outline.description && !suggestedTeamName) {
+        setSuggestedTeamName(true)
+        appendAiMessage('팀명을 추천해드릴까요? 원하시면 "팀명 추천해줘"라고 말씀해 주세요.')
+      }
+      if (isAiMention(text) && /추천/.test(text)) {
+        const nameRes = await suggestTeamName(chatLog)
+        if (nameRes.suggestions.length > 0) {
+          appendAiMessage(`팀명 후보: ${nameRes.suggestions.join(', ')}`)
+        }
+      }
+    } catch {
+      // AI 파싱 실패는 조용히 무시 — 폼 직접 입력은 항상 가능하다
+    }
+  }
+
   // @AI로 시작하는 메시지만 AI가 응답한다 — 팀원끼리의 일반 대화는 AI 파이프라인을 타지 않는다
+  // (단, 공동설정 단계는 F-28에 따라 멘션 없이도 모든 메시지를 파싱 대상으로 삼는다)
   function handleSend(text: string) {
-    setMessages((prev) => {
-      const next = [
-        ...prev,
-        { id: `local-${prev.length}`, teamId: 'setup', authorId: currentUserId, text, sentAt: new Date().toISOString() },
-      ]
-      if (!isAiMention(text)) return next
-      return [
-        ...next,
-        {
-          id: `local-${prev.length + 1}`,
-          teamId: 'setup',
-          authorId: 'ai',
-          text: '확인했습니다. 요청하신 내용을 처리할게요.',
-          sentAt: new Date().toISOString(),
-        },
-      ]
-    })
+    const userMessage: ChatMessage = {
+      id: `local-${messages.length}`,
+      teamId: 'setup',
+      authorId: currentUserId,
+      text,
+      sentAt: new Date().toISOString(),
+    }
+    const nextMessages = [...messages, userMessage]
+    setMessages(nextMessages)
+
+    if (mode.phase === 'setup' && mode.step === 'common-info') {
+      const chatLog = nextMessages.filter((m) => m.authorId !== 'ai').map((m) => m.text)
+      void handleCommonInfoChat(text, chatLog)
+      return
+    }
+
+    if (!isAiMention(text)) return
+    appendAiMessage('확인했습니다. 요청하신 내용을 처리할게요.')
   }
 
   // F-27: 로드맵 확정 시 화면 전환 없이 진행관리 모드로 자동 전환.
@@ -142,7 +196,7 @@ export function TeamDashboardPage() {
             <InviteStep onComplete={handleInviteComplete} joinedSession={joinedSession} />
           )}
           {mode.phase === 'setup' && mode.step === 'common-info' && (
-            <CommonInfoStep onComplete={handleCommonInfoComplete} />
+            <CommonInfoStep onComplete={handleCommonInfoComplete} aiDraft={commonInfoDraft} />
           )}
           {mode.phase === 'setup' && mode.step === 'assignment' && (
             <AssignmentStep onComplete={advance} members={inviteMembers} />

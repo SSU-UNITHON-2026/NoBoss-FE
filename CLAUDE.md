@@ -48,8 +48,6 @@ AI 마이크로서비스: `https://web-production-dc097.up.railway.app` — 프�
   기대하는 타입과 실제 응답이 다른 경우가 흔하다(`owner`는 멤버 id가 아니라 이름 문자열, 공동 담당은
   `"공동"`; 로드맵은 중첩 `RoadmapStep[]`이 아니라 `stage`/`stageName`이 붙은 평평한 Task 리스트로
   내려옴 — 5단계 뼈대·라벨은 백엔드에 없으므로 `roadmapTemplates.ts`에서 프론트가 직접 구성).
-- CORS가 `http://localhost:5173` origin에만 허용된다. `VITE_API_BASE_URL=https://noboss-api.kusitms.xyz/api/v1`로
-  설정하고 5173에서 테스트한다(다른 포트가 꼭 필요하면 `vite.config.ts`의 `server.proxy`로 우회).
 - 응답은 `{ success, status, data, timestamp }` 포맷 — `src/lib/http.ts`가 이미 언래핑하므로 호출부에서
   `success`를 다시 체크하지 않는다.
 - 백엔드에 인증·팀원초대·멤버·채팅로그·독촉 API가 없다 — 이 기능들은 계속 localStorage mock

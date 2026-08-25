@@ -1,32 +1,23 @@
-# React + TypeScript + Vite
+# NoBoss
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+대학 팀플에서 "팀장" 역할 자체를 없애고, 업무 배분·진행 관리·독촉·기여도 집계를 데이터와 규칙으로
+대체하는 서비스. unwork 해커톤 프로젝트의 프론트엔드입니다.
 
-Currently, two official plugins are available:
+## 기술 스택
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Vite 8** + **React 19** + **TypeScript** (strict)
+- **React Router 7** (`BrowserRouter`)
+- **Tailwind CSS v4** (`@tailwindcss/vite`, `@theme` 토큰 방식)
+- Lint: **oxlint**
 
-## React Compiler
+## 실행
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # 개발 서버
+npm run build     # tsc -b && vite build
+npm run lint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+실제 백엔드(`https://noboss-api.kusitms.xyz`)와 연동하려면 `VITE_API_BASE_URL`을 설정하세요. 자세한
+백엔드 연동 규칙과 코드 컨벤션은 [`CLAUDE.md`](./CLAUDE.md)를 참고하세요.

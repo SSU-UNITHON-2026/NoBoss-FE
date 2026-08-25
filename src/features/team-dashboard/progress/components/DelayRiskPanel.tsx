@@ -56,7 +56,15 @@ export function DelayRiskPanel({
                 <div>
                   <p className="text-sm font-medium text-ink-900">{task.title}</p>
                   <p className="mt-0.5 text-sm font-semibold text-danger-600">{ownerLabel}</p>
-                  <p className="mt-0.5 text-xs text-ink-600">기한 D-{alert.daysOverdue} · 미완료</p>
+                  <p className="mt-0.5 text-xs text-ink-600">
+                    기한{' '}
+                    {alert.daysOverdue > 0
+                      ? `D-${alert.daysOverdue}`
+                      : alert.daysOverdue < 0
+                        ? `D+${Math.abs(alert.daysOverdue)}`
+                        : 'D-day'}{' '}
+                    · 미완료
+                  </p>
                 </div>
                 {canNudge ? (
                   <Button

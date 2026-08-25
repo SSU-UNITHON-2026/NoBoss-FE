@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { applyMessage, sendMessage } from '@/api/messages'
-import { getProject } from '@/api/project'
+import { getProject, updateProject } from '@/api/project'
 import { getTasks, getTaskRisks, markTaskDone } from '@/api/tasks'
 import { Button } from '@/components/ui/Button'
+import { Field, Input } from '@/components/ui/Input'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { TeamChatPanel } from '@/features/team-dashboard/chat/components/TeamChatPanel'
@@ -53,6 +54,16 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
   const [liveTasks, setLiveTasks] = useState<TaskResponse[] | null>(null)
   const [liveRisks, setLiveRisks] = useState<DelayAlert[]>([])
   const [liveError, setLiveError] = useState<string | null>(null)
+  const [isEditingPlan, setIsEditingPlan] = useState(false)
+  const [planDraft, setPlanDraft] = useState<{
+    teamName: string
+    subjectName: string
+    projectTopic: string
+    deadline: string
+    description: string
+  } | null>(null)
+  const [planSaving, setPlanSaving] = useState(false)
+  const [planError, setPlanError] = useState<string | null>(null)
   const [steps, setSteps] = useState<RoadmapStep[]>(() =>
     storedRecord ? storedRecord.roadmap : isMockOnboard ? onboardRoadmap : [],
   )
@@ -279,6 +290,35 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     ])
   }
 
+  // 실서버는 PATCH /api/v1/projects/{id}로 계획(팀명·과목·주제·마감·설명)을 직접 수정할 수 있다
+  function openPlanEditor() {
+    if (!liveProject) return
+    setPlanDraft({
+      teamName: liveProject.teamName,
+      subjectName: liveProject.subjectName,
+      projectTopic: liveProject.projectTopic,
+      deadline: liveProject.deadline,
+      description: liveProject.description,
+    })
+    setPlanError(null)
+    setIsEditingPlan(true)
+  }
+
+  async function savePlanEditor() {
+    if (!planDraft) return
+    setPlanSaving(true)
+    setPlanError(null)
+    try {
+      const updated = await updateProject(LIVE_DEMO_PROJECT_ID, planDraft)
+      setLiveProject(updated)
+      setIsEditingPlan(false)
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : '저장에 실패했습니다')
+    } finally {
+      setPlanSaving(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-[1fr_360px] gap-6">
       <div className="flex flex-col gap-6">
@@ -329,9 +369,61 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
           />
         </div>
 
-        <div className="flex justify-end">
-          <Button variant="secondary">계획 수정하기</Button>
-        </div>
+        {isEditingPlan && planDraft ? (
+          <div className="rounded-lg border border-surface-border p-5">
+            <p className="mb-4 font-semibold text-ink-900">계획 수정하기</p>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="팀명">
+                <Input
+                  value={planDraft.teamName}
+                  onChange={(e) => setPlanDraft((p) => (p ? { ...p, teamName: e.target.value } : p))}
+                />
+              </Field>
+              <Field label="과목명">
+                <Input
+                  value={planDraft.subjectName}
+                  onChange={(e) => setPlanDraft((p) => (p ? { ...p, subjectName: e.target.value } : p))}
+                />
+              </Field>
+              <Field label="프로젝트 주제">
+                <Input
+                  value={planDraft.projectTopic}
+                  onChange={(e) => setPlanDraft((p) => (p ? { ...p, projectTopic: e.target.value } : p))}
+                />
+              </Field>
+              <Field label="마감일">
+                <Input
+                  type="date"
+                  value={planDraft.deadline}
+                  onChange={(e) => setPlanDraft((p) => (p ? { ...p, deadline: e.target.value } : p))}
+                />
+              </Field>
+            </div>
+            <div className="mt-4">
+              <Field label="설명">
+                <Input
+                  value={planDraft.description}
+                  onChange={(e) => setPlanDraft((p) => (p ? { ...p, description: e.target.value } : p))}
+                />
+              </Field>
+            </div>
+            {planError ? <p className="mt-3 text-sm text-danger-600">{planError}</p> : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setIsEditingPlan(false)} disabled={planSaving}>
+                취소
+              </Button>
+              <Button onClick={savePlanEditor} disabled={planSaving}>
+                {planSaving ? '저장 중…' : '저장'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={openPlanEditor} disabled={!isLiveBackend || !liveProject}>
+              계획 수정하기
+            </Button>
+          </div>
+        )}
       </div>
 
       <TeamChatPanel

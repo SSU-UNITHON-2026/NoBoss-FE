@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { formatDday } from '@/lib/date'
 import { cn } from '@/lib/cn'
 import type { RoadmapStep, RoadmapStepStatus } from '@/types/roadmap'
@@ -17,11 +19,26 @@ interface RoadmapStepListProps {
   currentUserId: string
   memberNameById: Record<string, string>
   onToggleSubtask: (subtaskId: string) => void
+  onQuickAdd: (title: string) => void
 }
 
-export function RoadmapStepList({ steps, currentUserId, memberNameById, onToggleSubtask }: RoadmapStepListProps) {
+export function RoadmapStepList({
+  steps,
+  currentUserId,
+  memberNameById,
+  onToggleSubtask,
+  onQuickAdd,
+}: RoadmapStepListProps) {
   const total = steps.flatMap((s) => s.subtasks).length
   const completed = steps.flatMap((s) => s.subtasks).filter((t) => t.status === 'done').length
+  const [quickTitle, setQuickTitle] = useState('')
+
+  // F-18: 바로 할 일 추가 — 제목만 입력하면 현재 진행 중 단계(없으면 마지막 단계)에 내 담당으로 즉시 등록
+  function submitQuickAdd() {
+    if (!quickTitle.trim()) return
+    onQuickAdd(quickTitle)
+    setQuickTitle('')
+  }
 
   return (
     <div className="rounded-lg border border-surface-border p-5">
@@ -30,6 +47,22 @@ export function RoadmapStepList({ steps, currentUserId, memberNameById, onToggle
         <p className="text-sm text-ink-600">
           {completed} / {total} 완료
         </p>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <Input
+          value={quickTitle}
+          onChange={(e) => setQuickTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submitQuickAdd()
+          }}
+          placeholder="바로 할 일 추가 (예: 참고자료 정리)"
+          disabled={steps.length === 0}
+          className="flex-1"
+        />
+        <Button variant="secondary" onClick={submitQuickAdd} disabled={steps.length === 0 || !quickTitle.trim()}>
+          추가
+        </Button>
       </div>
 
       {steps.length === 0 ? (

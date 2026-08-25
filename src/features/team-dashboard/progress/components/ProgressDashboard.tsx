@@ -16,6 +16,7 @@ import {
 import type { ChatMessage } from '@/types/chat'
 import type { DelayAlert } from '@/types/nudge'
 import type { RoadmapStep } from '@/types/roadmap'
+import type { Subtask } from '@/types/task'
 import { DelayRiskPanel } from './DelayRiskPanel'
 import { RoadmapStepList } from './RoadmapStepList'
 
@@ -77,6 +78,30 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
     })
   }
 
+  // F-18: 바로 할 일 추가 — 현재 진행 중 단계(없으면 마지막 단계)에 내 담당으로 즉시 추가
+  function addQuickTask(title: string) {
+    if (!title.trim()) return
+    setSteps((prev) => {
+      if (prev.length === 0) return prev
+      const targetIndex = prev.findIndex((s) => s.status === 'in-progress')
+      const index = targetIndex !== -1 ? targetIndex : prev.length - 1
+      const newSubtask: Subtask = {
+        id: `quick-${Date.now()}`,
+        taskId: prev[index].id,
+        title: title.trim(),
+        assigneeId: currentUserId,
+        dueDate: prev[index].dueDate,
+        status: 'in-progress',
+        isQuickAdd: true,
+      }
+      const next: RoadmapStep[] = prev.map((step, i) =>
+        i === index ? { ...step, subtasks: [...step.subtasks, newSubtask] } : step,
+      )
+      if (isStored && teamId) updateRoadmap(teamId, next)
+      return next
+    })
+  }
+
   function handleSend(text: string) {
     setMessages((prev) => [
       ...prev,
@@ -128,6 +153,7 @@ export function ProgressDashboard({ teamId }: ProgressDashboardProps) {
             currentUserId={currentUserId}
             memberNameById={memberNameById}
             onToggleSubtask={toggleSubtask}
+            onQuickAdd={addQuickTask}
           />
 
           <DelayRiskPanel

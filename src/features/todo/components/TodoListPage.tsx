@@ -1,16 +1,50 @@
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
 import { StatCard } from '@/components/ui/StatCard'
 import { formatDday } from '@/lib/date'
 import { USE_MOCKS } from '@/lib/env'
 import { todoGroups as mockTodoGroups } from '@/mocks/todo'
-import type { TodoItem } from '@/types/todo'
+import type { TodoItem, TodoProjectGroup } from '@/types/todo'
 
 const initialGroups = USE_MOCKS ? mockTodoGroups : []
+const QUICK_GROUP_ID = 'quick'
 
 export function TodoListPage() {
   const [groups, setGroups] = useState(initialGroups)
+  const [quickTitle, setQuickTitle] = useState('')
+
+  // F-18b: To Do List에서 바로 할 일 추가 — 특정 프로젝트에 속하지 않는 개인 할 일로 즉시 등록
+  function addQuickItem(title: string) {
+    if (!title.trim()) return
+    const newItem: TodoItem = {
+      id: `quick-${Date.now()}`,
+      projectId: QUICK_GROUP_ID,
+      projectLabel: '개인 할 일',
+      stepLabel: '바로 추가',
+      title: title.trim(),
+      ownerLabel: '내 담당',
+      dueDate: new Date().toISOString().slice(0, 10),
+      done: false,
+    }
+    setGroups((prev) => {
+      const index = prev.findIndex((g) => g.projectId === QUICK_GROUP_ID)
+      if (index !== -1) {
+        return prev.map((g, i) => (i === index ? { ...g, items: [...g.items, newItem] } : g))
+      }
+      const quickGroup: TodoProjectGroup = {
+        projectId: QUICK_GROUP_ID,
+        projectTitle: '개인 할 일',
+        courseLabel: '프로젝트 미지정',
+        dueDate: newItem.dueDate,
+        items: [newItem],
+      }
+      return [quickGroup, ...prev]
+    })
+    setQuickTitle('')
+  }
 
   function toggleItem(projectId: string, itemId: string) {
     setGroups((prev) =>
@@ -44,6 +78,21 @@ export function TodoListPage() {
         <StatCard label="남은 내 할 일" value={`${remaining.length}건`} />
         <StatCard label="가장 급한 기한" value={nearestDue ? formatDday(nearestDue) : '-'} />
         <StatCard label="완료" value={`${completed.length}건`} />
+      </div>
+
+      <div className="mt-6 flex gap-2">
+        <Input
+          value={quickTitle}
+          onChange={(e) => setQuickTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') addQuickItem(quickTitle)
+          }}
+          placeholder="바로 할 일 추가 (예: 회의록 정리)"
+          className="flex-1"
+        />
+        <Button variant="secondary" onClick={() => addQuickItem(quickTitle)} disabled={!quickTitle.trim()}>
+          추가
+        </Button>
       </div>
 
       <div className="mt-8 flex flex-col gap-8">

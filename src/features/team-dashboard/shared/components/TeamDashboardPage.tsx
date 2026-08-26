@@ -101,7 +101,11 @@ export function TeamDashboardPage() {
         description: outline.description ?? prev.description,
         dueDate: outline.deadline ?? prev.dueDate,
       }))
-      if (res.confirmation_message) appendAiMessage(res.confirmation_message)
+      if (res.confirmation_message) {
+        appendAiMessage(res.confirmation_message)
+      } else {
+        appendAiMessage('아직 못 알아들었어요. 팀명·과목명·주제·설명·마감일 중 하나를 말씀해 주시면 자동으로 채워드릴게요.')
+      }
 
       // 팀명은 아직 없는데 주제·설명이 다 채워졌으면, 팀당 한 번만 후보를 추천한다
       if (!outline.team_name && !commonInfoDraft.name && outline.topic && outline.description && !suggestedTeamName) {

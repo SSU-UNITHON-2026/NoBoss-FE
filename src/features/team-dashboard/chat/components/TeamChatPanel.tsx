@@ -176,8 +176,8 @@ export function TeamChatPanel({
         </Button>
       </div>
       <p className="px-5 pb-3 text-xs text-ink-400">
-        <span className="font-semibold text-brand-600">{AI_MENTION}</span>로 시작한 메시지만 AI가 처리합니다. 나머지는
-        팀원끼리의 대화로만 남아요.
+        NOBOSS AI가 채팅을 읽고 수정을 돕고 있으며, <span className="font-semibold text-brand-600">{AI_MENTION}</span>로
+        시작한 메시지는 더 주의 깊게 처리해요.
       </p>
     </div>
   )
